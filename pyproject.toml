@@ -1,0 +1,52 @@
+[project]
+name = "ealta"
+version = "0.1.0"
+description = "Python edges of ealta: BirdNET listener + the illustration pipeline."
+# Pinned to 3.12: TensorFlow (via birdnetlib) has no wheels for 3.14 yet.
+requires-python = "==3.12.*"
+dependencies = [
+    # Image handling for the illustration pipeline (generate/cutout/masks).
+    # Kept light: background removal uses a Pillow flood-fill, not rembg, whose
+    # numba/llvmlite chain conflicts with the BirdNET stack here.
+    "pillow>=10",
+    # numpy + scipy power the cutout: vectorised sentinel removal and the
+    # connected-component despeckle that sweeps stray flecks. (scipy also rides
+    # in via librosa, but the cutout depends on it directly, so declare it.)
+    "numpy>=1.24",
+    "scipy>=1.10",
+    # BirdNET listener: analyse recordings or the live mic into detections.
+    "birdnetlib>=0.18",
+    "librosa>=0.10",
+    "sounddevice>=0.4",
+    # The frame shooter: screenshot the /panel page to push to the Inky.
+    "playwright>=1.40",
+    # TFLite backend for birdnetlib — Google's lightweight LiteRT runtime, with
+    # wheels for both macOS arm64 and the Pi (linux aarch64) and Python 3.10-3.14.
+    # birdnetlib imports `tflite_runtime`, so listen.py aliases this to it. This
+    # replaces full TensorFlow: lighter on the Mac, and Pi-appropriate (full TF
+    # is far too heavy for a Pi).
+    "ai-edge-litert>=2.1",
+]
+
+# The Inky push (Pimoroni `inky`) is Pi-only — it pulls SPI/GPIO libraries that
+# can't resolve on macOS — so the shooter lazy-imports it and the Pi installs it
+# separately (see deploy/DEPLOY.md). It is deliberately NOT a project dependency.
+
+[tool.uv]
+# Managed by `uv sync`; the lockfile (uv.lock) is the Gemfile.lock analog.
+
+[tool.ruff]
+# Lint + format for the Python edges (birdnet/, pipeline/, shooter/). Run: `make lint-py`.
+line-length = 120
+target-version = "py310"
+exclude = [".venv", "model"]
+
+[tool.ruff.lint]
+# pycodestyle/pyflakes (E,F,W), import order (I), pyupgrade (UP), bugbear (B),
+# comprehensions (C4), simplify (SIM). A pragmatic-but-strict set for scripts.
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+# verify.py holds a long LLM prompt as a triple-quoted literal; its lines can't wrap
+# without changing what the model reads, and noqa can't live inside a string.
+"pipeline/scripts/verify.py" = ["E501"]

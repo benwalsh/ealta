@@ -1,0 +1,24 @@
+# Context for the cloud image (docker build . at the repo root). Keep it lean. The
+# engine ships no bird art: illustrations and masks.json live in a station profile,
+# which the deploy stages into the image separately. (The ARM validation build uses
+# its own deploy/Dockerfile.armcheck.dockerignore.)
+pipeline/assets/illustrations
+.git
+.github
+.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.DS_Store
+node_modules
+dashboard/node_modules
+dashboard/vendor
+dashboard/tmp
+dashboard/log
+dashboard/storage/*.sqlite3
+dashboard/storage/*.sqlite3-*
+dashboard/public/vite
+dashboard/public/assets
+pipeline/assets/references
+.sync_cursor
+storage/almanac.json

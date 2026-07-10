@@ -1,0 +1,35 @@
+[Unit]
+# The collage web app: reads the detections the listener writes, owns
+# species_infos, serves / (browse) and /station (the wall display the shooter
+# screenshots). Adjust User= and the paths (DEPLOY.md has a sed for it), then:
+# sudo cp deploy/*.service deploy/*.timer /etc/systemd/system/
+Description=ealta collage web app
+# ealta-restore recovers the DB from the offsite replica before db:prepare runs, so a
+# dead/corrupt SD card comes back with its history instead of an empty database.
+After=network-online.target ealta-restore.service
+Wants=network-online.target ealta-restore.service
+# Never permanently give up restarting — an unattended station box should keep trying to
+# recover, not stay down after a burst of failures (systemd's default is 5-in-10s → failed).
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/ealta/dashboard
+# .env carries SECRET_KEY_BASE and BIRD_DB (the absolute path to the shared DB,
+# the single source of truth the listener and Rails both point at).
+EnvironmentFile=/home/pi/ealta/.env
+Environment=RAILS_ENV=production
+Environment=LANG=C.UTF-8 LC_ALL=C.UTF-8
+# Idempotent: creates the shared SQLite + the detections/species_infos tables and
+# sets WAL on the first connection. Assets are built at deploy time (DEPLOY.md),
+# not here, so a crash-restart doesn't re-precompile. bash -lc picks up rbenv.
+ExecStartPre=/usr/bin/env bash -lc 'cd /home/pi/ealta/dashboard && bin/rails db:prepare'
+# Bind 0.0.0.0 so the collage is browsable on the home LAN, not just localhost.
+ExecStart=/usr/bin/env bash -lc 'cd /home/pi/ealta/dashboard && exec bin/rails server -p 4030 -b 0.0.0.0'
+# always: keep the dashboard up through any exit except a deliberate stop.
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,17 @@
+# Curated literary / folkloric lore per species — attributed, public-domain verse and tales
+# that round off a Journal entry. The model NEVER writes these: they are quoted verbatim with
+# their credit ("a reference supplies the exact, attributed text"). Keyed by scientific name.
+# `kind` is 'poem' or 'tale'.
+#
+# This example ships ONE entry to show the format. Add your own, in your own tradition —
+# whatever public-domain verse or tale belongs to the birds your station hears.
+
+"Streptopelia decaocto":
+  kind: tale
+  text: >
+    In Greek the collared dove is the "eighteener", deca octo, for the two soft notes it
+    repeats over and over. An old folk tale tells of a servant girl paid a mere eighteen coins
+    a year, who begged the gods to let the whole world know how meanly she was used. They
+    answered by turning her into a dove — and ever since she has called deca octo, eighteen,
+    eighteen, across the fields.
+  attribution: A Greek folk etymology for the collared dove's call

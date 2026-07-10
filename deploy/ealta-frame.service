@@ -1,0 +1,17 @@
+[Unit]
+# Screenshot the /station wall programme and push it to the Inky. Oneshot, driven by
+# ealta-frame.timer. The shooter skips the push when nothing changed, so the
+# e-ink panel only refreshes when the station screen changes.
+Description=Push the station view to the Inky panel
+After=ealta-web.service
+Requires=ealta-web.service
+
+[Service]
+Type=oneshot
+User=pi
+WorkingDirectory=/home/pi/ealta
+EnvironmentFile=/home/pi/ealta/.env
+# Wait until the web app is actually serving before screenshotting (Puma can
+# still be booting when this fires), so the first push of the day isn't a miss.
+ExecStartPre=/usr/bin/env bash -lc 'for i in $(seq 1 30); do curl -sf http://localhost:4030/up >/dev/null && exit 0; sleep 2; done; echo "station not ready" >&2; exit 1'
+ExecStart=/usr/bin/env bash -lc 'cd /home/pi/ealta && exec uv run python shooter/shoot.py --url http://localhost:4030/station'

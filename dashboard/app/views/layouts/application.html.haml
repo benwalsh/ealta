@@ -1,0 +1,17 @@
+!!!
+-# Minimal fallback layout. The real surfaces bring their own HTML: `/` uses the
+-# `editorial` layout (React SPA); /kiosk, /station, /emulator, /panel render
+-# standalone (layout: false). This exists only as a sane default for any future
+-# server-rendered HTML action.
+%html{ lang: ui_lang, data: { lang: ui_lang } }
+  %head
+    %title= content_for(:title) || Station.site_name
+    %meta{ name: "viewport", content: "width=device-width,initial-scale=1,viewport-fit=cover" }
+    = csrf_meta_tags
+    = csp_meta_tag
+    = yield :head
+    = stylesheet_link_tag "colors", "panel", "application", "data-turbo-track": "reload"
+    = vite_client_tag
+    = vite_javascript_tag "application"
+  %body
+    = yield

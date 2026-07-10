@@ -1,0 +1,101 @@
+# The cloud mirror's write side: the Pi's push.py POSTs batches of detections
+# here and we upsert them into the cloud DB. Stateless + token-authed (no
+# session, no CSRF — hence ActionController::API). Disabled (404) unless
+# CLOUD_INGEST_TOKEN is set, so on the Pi (token unset) it accepts nothing.
+class IngestController < ActionController::API
+  # Only the listener's own columns; the cloud assigns its own id + timestamps.
+  UPSERT_COLUMNS = %w[Date Time Sci_Name Com_Name Confidence Lat Lon Week File_Name dedupe_key].freeze
+  # A liveness tick's columns; dedupe_key (SHA-256 of at|source) is the upsert target.
+  HEARTBEAT_COLUMNS = %w[at source dedupe_key].freeze
+  # Keep the mirror's ticks bounded like the Pi's — they only feed the recent window.
+  HEARTBEAT_RETENTION = 2.days
+
+  def detections
+    return head :not_found if ingest_token.blank?
+    return head :unauthorized unless authorized?
+
+    rows = permitted_rows
+    if rows.any?
+      store_batch(rows)
+      scan_alerts(rows)
+      refresh_summary
+    end
+    render json: { upserted: rows.size }
+  end
+
+  # The liveness half of the push: the same ticks the listener writes, so the cloud can
+  # tell a quiet spell from a stalled feed (AdminHealth) and ghost blind spots in the
+  # sparkline. No alerts/summary — a tick isn't news.
+  def heartbeats
+    return head :not_found if ingest_token.blank?
+    return head :unauthorized unless authorized?
+
+    rows = permitted_heartbeats
+    if rows.any?
+      store_heartbeats(rows)
+      Heartbeat.where(at: ...HEARTBEAT_RETENTION.ago).delete_all
+    end
+    render json: { upserted: rows.size }
+  end
+
+  private
+
+  # Turn this batch's species into alert events + emails. Rescued: the mirror copy
+  # is already saved, so a hiccup in alerting must never fail the ingest.
+  def scan_alerts(rows)
+    AlertEngine.scan(rows.pluck('Sci_Name'))
+  rescue StandardError => e
+    Rails.logger.error("[alerts] scan failed: #{e.class} #{e.message}")
+  end
+
+  # Regenerate the LLM "today" summary now that fresh data has landed (staleness-
+  # guarded to ~one Bedrock call per window). Rescued for the same reason as alerts.
+  def refresh_summary
+    TodaySummary.refresh_if_stale
+  rescue StandardError => e
+    Rails.logger.error("[summary] refresh failed: #{e.class} #{e.message}")
+  end
+
+  # Bulk idempotent upsert keyed on dedupe_key. Skipping validations is the point —
+  # the Pi is the validated source of truth; this is a mirror copy. SQLite needs an
+  # explicit conflict target (unique_by:); MySQL/trilogy's ON DUPLICATE KEY UPDATE
+  # fires off any unique index (the dedupe_key one) and rejects :unique_by outright.
+  def store_batch(rows)
+    if Detection.connection.adapter_name.match?(/mysql|trilogy/i)
+      Detection.upsert_all(rows) # rubocop:disable Rails/SkipsModelValidations
+    else
+      Detection.upsert_all(rows, unique_by: :dedupe_key) # rubocop:disable Rails/SkipsModelValidations
+    end
+  end
+
+  # Same idempotent-upsert shape as detections, keyed on the heartbeat dedupe_key.
+  def store_heartbeats(rows)
+    if Heartbeat.connection.adapter_name.match?(/mysql|trilogy/i)
+      Heartbeat.upsert_all(rows) # rubocop:disable Rails/SkipsModelValidations
+    else
+      Heartbeat.upsert_all(rows, unique_by: :dedupe_key) # rubocop:disable Rails/SkipsModelValidations
+    end
+  end
+
+  def permitted_heartbeats
+    params.permit(heartbeats: HEARTBEAT_COLUMNS).fetch(:heartbeats, []).
+      map(&:to_h).select { |row| row['dedupe_key'].present? }
+  end
+
+  def ingest_token
+    ENV.fetch('CLOUD_INGEST_TOKEN', nil)
+  end
+
+  # Constant-time bearer-token check.
+  def authorized?
+    provided = request.headers['Authorization'].to_s.sub(/\ABearer\s+/i, '')
+    provided.present? && ActiveSupport::SecurityUtils.secure_compare(provided, ingest_token)
+  end
+
+  # Strong params: an array of detection hashes, each limited to known columns,
+  # and every row must carry a dedupe_key (the upsert conflict target).
+  def permitted_rows
+    params.permit(detections: UPSERT_COLUMNS).fetch(:detections, []).
+      map(&:to_h).select { |row| row['dedupe_key'].present? }
+  end
+end

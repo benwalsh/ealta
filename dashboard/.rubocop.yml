@@ -1,0 +1,351 @@
+plugins:
+  - rubocop-factory_bot
+  - rubocop-performance
+  - rubocop-rails
+  - rubocop-rspec
+  - rubocop-rspec_rails
+
+AllCops:
+  DisplayCopNames: true
+  DisplayStyleGuide: true
+  Exclude:
+    - "app/**/*haml"
+    - "bin/**/*"
+    - "db/schema.rb"
+    - "log/**/*"
+    - "node_modules/**/*"
+    - "tmp/**/*"
+    - "vendor/**/*"
+  NewCops: enable
+  SuggestExtensions:
+    rubocop-rails: true
+    rubocop-rake: false
+    rubocop-rspec: false
+  TargetRubyVersion: 4.0
+
+FactoryBot/FactoryAssociationWithStrategy:
+  Enabled: false
+
+Layout/ClassStructure:
+  Enabled: true
+  Categories:
+    module_inclusion:
+      - include
+      - prepend
+      - extend
+    attributes:
+      - attr_accessor
+      - attr_reader
+      - attr_writer
+    macros:
+      - bitfield
+      - enum
+      - serialize
+      - audited
+      - delegate
+    associations:
+      - belongs_to
+      - has_one
+      - has_many
+      - has_one_attached
+      - has_many_attached
+      - has_and_belongs_to_many
+      - accepts_nested_attributes_for
+    validations:
+      - validate
+      - validates
+      - validates_presence_of
+      - validates_inclusion_of
+      - validates_numericality_of
+      - validates_length_of
+      - validates_uniqueness_of
+    callbacks:
+      - before_validation
+      - after_validation
+      - before_save
+      - around_save
+      - after_save
+      - before_create
+      - after_create
+      - before_update
+      - after_update
+      - before_destroy
+      - after_destroy
+      - after_initialize
+      - after_commit
+      - after_rollback
+    scopes:
+      - scope
+  ExpectedOrder:
+    - module_inclusion
+    - constants
+    - attributes
+    - macros
+    - associations
+    - validations
+    - callbacks
+    - scopes
+    - public_class_methods
+    - public_methods
+    - protected_methods
+    - private_methods
+Layout/DotPosition:
+  EnforcedStyle: trailing
+
+Layout/EmptyLineAfterGuardClause:
+  Enabled: false
+
+Layout/EmptyLinesAroundAttributeAccessor:
+  Enabled: true
+
+Layout/HashAlignment:
+  EnforcedHashRocketStyle: table
+  EnforcedColonStyle: table
+
+Layout/LineLength:
+  Max: 120
+
+Layout/SpaceAroundMethodCallOperator:
+  Enabled: true
+
+Lint/BinaryOperatorWithIdenticalOperands:
+  Enabled: false
+
+Lint/ConstantDefinitionInBlock:
+  Enabled: false
+
+Lint/DeprecatedOpenSSLConstant:
+  Enabled: true
+
+Lint/DuplicateElsifCondition:
+  Enabled: true
+
+Lint/DuplicateRescueException:
+  Enabled: true
+
+Lint/EmptyConditionalBody:
+  Enabled: true
+
+Lint/FloatComparison:
+  Enabled: true
+
+Lint/MissingSuper:
+  Enabled: false
+
+Lint/MixedRegexpCaptureTypes:
+  Enabled: true
+
+Lint/OutOfRangeRegexpRef:
+  Enabled: true
+
+Lint/RaiseException:
+  Enabled: true
+
+Lint/RedundantSplatExpansion:
+  Enabled: false
+
+Lint/SelfAssignment:
+  Enabled: true
+
+Lint/StructNewOverride:
+  Enabled: true
+
+Lint/TopLevelReturnWithArgument:
+  Enabled: true
+
+Lint/UnreachableLoop:
+  Enabled: true
+
+Lint/UselessConstantScoping:
+  Enabled: false
+
+Metrics/AbcSize:
+  Enabled: false
+
+Metrics/BlockLength:
+  Enabled: false
+
+Metrics/ClassLength:
+  Enabled: false
+
+Metrics/CyclomaticComplexity:
+  Enabled: false
+
+Metrics/MethodLength:
+  Enabled: false
+
+Metrics/ModuleLength:
+  Enabled: false
+
+Metrics/ParameterLists:
+  Max: 12
+
+Metrics/PerceivedComplexity:
+  Enabled: false
+
+Naming/MemoizedInstanceVariableName:
+  Enabled: false
+
+Naming/MethodParameterName:
+  # Geometry code legitimately uses short names.
+  AllowedNames:
+    - x
+    - y
+    - r
+    - cx
+    - cy
+    - gx
+    - gy
+    - dx
+    - dy
+    - tx
+    - ty
+    - id
+    - en  # ISO language codes (bilingual EN/GA helpers)
+    - ga
+
+Naming/PredicateMethod:
+  Enabled: false
+
+Naming/VariableNumber:
+  Enabled: false
+
+Performance/CollectionLiteralInLoop:
+  Enabled: false
+
+RSpec/AnyInstance:
+  Enabled: false
+
+RSpec/ExampleLength:
+  Enabled: false
+
+RSpec/ExpectInHook:
+  Enabled: false
+
+RSpec/IndexedLet:
+  Enabled: false
+
+RSpec/MessageSpies:
+  EnforcedStyle: receive
+
+RSpec/MultipleExpectations:
+  Enabled: false
+
+RSpec/MultipleMemoizedHelpers:
+  Enabled: false
+
+RSpec/NestedGroups:
+  Enabled: false
+
+RSpec/PendingWithoutReason:
+  Enabled: false
+
+RSpec/StubbedMock:
+  Enabled: false
+
+Style/AccessorGrouping:
+  Enabled: false
+
+Style/ArrayCoercion:
+  Enabled: false
+
+Style/AsciiComments:
+  Enabled: false
+
+Style/BisectedAttrAccessor:
+  Enabled: true
+
+Style/CaseLikeIf:
+  Enabled: false
+
+Style/ClassAndModuleChildren:
+  EnforcedStyle: nested
+
+Style/ClassMethodsDefinitions:
+  Enabled: true
+  EnforcedStyle: self_class
+
+Style/CollectionMethods:
+  Enabled: true
+
+Style/Documentation:
+  Enabled: false
+
+Style/DoubleNegation:
+  Enabled: false
+
+Style/ExplicitBlockArgument:
+  Enabled: false
+
+Style/ExponentialNotation:
+  Enabled: true
+  EnforcedStyle: scientific
+
+Style/FormatStringToken:
+  Enabled: false
+
+Style/FrozenStringLiteralComment:
+  Enabled: false
+
+Style/GlobalStdStream:
+  Enabled: true
+
+Style/HashAsLastArrayItem:
+  Enabled: false
+
+Style/HashEachMethods:
+  Enabled: true
+
+Style/HashLikeCase:
+  Enabled: true
+
+Style/HashSyntax:
+  EnforcedShorthandSyntax: either
+
+Style/HashTransformKeys:
+  Enabled: true
+
+Style/HashTransformValues:
+  Enabled: true
+
+Style/KeywordArgumentsMerging:
+  Enabled: false
+
+Style/Lambda:
+  Enabled: false
+
+Style/OptionalBooleanParameter:
+  Enabled: false
+
+Style/RedundantAssignment:
+  Enabled: true
+
+Style/RedundantConstantBase:
+  Enabled: false
+
+Style/RedundantFetchBlock:
+  Enabled: false
+
+Style/RedundantFileExtensionInRequire:
+  Enabled: true
+
+Style/RedundantRegexpCharacterClass:
+  Enabled: true
+
+Style/RedundantRegexpEscape:
+  Enabled: true
+
+Style/SafeNavigationChainLength:
+  Enabled: false
+
+Style/SingleArgumentDig:
+  Enabled: false
+
+Style/SlicingWithRange:
+  Enabled: true
+
+Style/StringConcatenation:
+  Enabled: false
+
+Style/TernaryParentheses:
+  Enabled: false

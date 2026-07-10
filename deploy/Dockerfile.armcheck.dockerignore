@@ -1,0 +1,18 @@
+# Build context for the ARM Debian validation: keep it lean. Exclude host-built
+# artifacts (they'd clobber the container's own arm64-linux builds), the big
+# illustration set (not needed to validate deps/db/locale), and VCS/junk.
+.git
+.venv
+dashboard/vendor
+dashboard/node_modules
+dashboard/tmp
+dashboard/log
+dashboard/storage/*.sqlite3
+dashboard/storage/*.sqlite3-*
+dashboard/public/assets
+dashboard/public/birds
+dashboard/public/vite
+pipeline/assets/illustrations
+pipeline/assets/references
+**/__pycache__
+**/.DS_Store

@@ -1,0 +1,10 @@
+- content_for(:title) { "Unsubscribed · #{Station.site_name}" }
+
+.acct
+  %header.acct-top
+    %a.acct-home{ href: "/" } ← #{Station.site_name}
+    %h1.acct-h1 Unsubscribed
+  - if @subscription
+    %p.acct-lead You'll no longer get emails about this. You can re-enable alerts any time from your account.
+  - else
+    %p.acct-lead That link isn't valid — it may have already been used.

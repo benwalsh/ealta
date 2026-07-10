@@ -1,0 +1,20 @@
+[Unit]
+# Boot-time DB recovery: if the shared bird DB is missing or corrupt (SD-card death, power
+# cut), restore it from the Litestream offsite replica BEFORE the web app's db:prepare runs
+# — otherwise db:prepare makes an empty DB and the detection history is silently lost. Runs
+# once per boot, ordered ahead of the web + the replicate service. Needs the network (S3).
+Description=Restore the bird DB from Litestream if missing or corrupt (boot recovery)
+After=network-online.target
+Wants=network-online.target
+Before=ealta-web.service ealta-litestream.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=pi
+WorkingDirectory=/home/pi/ealta
+EnvironmentFile=/home/pi/ealta/.env
+ExecStart=/usr/bin/env bash /home/pi/ealta/deploy/restore-if-needed.sh
+
+[Install]
+WantedBy=multi-user.target

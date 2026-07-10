@@ -1,0 +1,11 @@
+# One lore entry for the suite — a self-worded, public-domain folk etymology, so lore
+# rendering can be exercised without depending on any station's real curation.
+"Streptopelia decaocto":
+  kind: tale
+  text: >
+    In Greek the collared dove is the "eighteener", deca octo, for the two soft notes it
+    repeats over and over. An old folk tale tells of a servant girl paid a mere eighteen coins
+    a year, who begged the gods to let the whole world know how meanly she was used. They
+    answered by turning her into a dove — and ever since she has called deca octo, eighteen,
+    eighteen, across the fields.
+  attribution: A Greek folk etymology for the collared dove's call

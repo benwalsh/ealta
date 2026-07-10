@@ -1,0 +1,25 @@
+# The hosts the enrichment researcher is allowed to fetch, and which bespoke adapters to
+# enable. Anything off this list is refused BEFORE any request is made. This is the single
+# place a station adds a source — the fetcher and the prompt read from here, so you never
+# edit code to trust a new host.
+#
+# The example ships English Wikipedia only, no adapters — a clean, dependency-free default.
+
+trusted_hosts:
+  - en.wikipedia.org
+
+# A regex (as a string) matching a whole family of affiliate hosts to also trust, or ~ for
+# none. Example use: a national body's regional branches on their own domains.
+affiliate_pattern: ~
+
+# Bespoke source adapters to enable (see app/services/enrichment/adapters/). Each handles a
+# source that needs more than a plain HTML fetch (e.g. a JSON search API). Empty = none;
+# the generic HTML path always remains.
+adapters: []
+
+# A short line injected into the enrichment prompt (%<sources>s) telling the model which
+# sources to prefer, per block type. Keep it factual and brief.
+prefer_note: >-
+  For folklore, prefer a recognised folklore archive if one is configured, otherwise use
+  Wikipedia's own folklore or mythology section. For regional notes, prefer a national or
+  regional ornithological body where one is trusted above.

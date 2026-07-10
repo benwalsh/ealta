@@ -1,0 +1,86 @@
+# Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion, Android Studio, WebStorm and Rider
+# Reference: https://intellij-support.jetbrains.com/hc/en-us/articles/206544839
+
+# User-specific stuff
+.idea/**/workspace.xml
+.idea/**/tasks.xml
+.idea/**/usage.statistics.xml
+.idea/**/dictionaries
+.idea/**/shelf
+
+# AWS User-specific
+.idea/**/aws.xml
+
+# Generated files
+.idea/**/contentModel.xml
+.idea
+
+# Sensitive or high-churn files
+.idea/**/dataSources/
+.idea/**/dataSources.ids
+.idea/**/dataSources.local.xml
+.idea/**/sqlDataSources.xml
+.idea/**/dynamic.xml
+.idea/**/uiDesigner.xml
+.idea/**/dbnavigator.xml
+
+*.pyc
+__pycache__/
+*.flac
+.vscode
+model/labels.txt
+datasets/
+birdnet.conf
+IdentifiedSoFar.txt
+IdentifiedSoFar.txt.bak
+Birders_Guide_Installer_Configuration.txt
+birdnet/
+templates/*.service
+scripts/*.txt
+scripts/*.db
+analyzing_now.txt
+apprise.txt
+body.txt
+BirdDB.txt
+exclude_species_list.txt
+firstrun.ini
+HUMAN.txt
+include_species_list.txt
+whitelist_species_list.txt
+/nbproject/private/
+.DS_Store
+
+# --- Local-only material, deliberately not shipped ---
+# Claude Code session data
+.claude/
+# Large source / reference imagery kept on disk for working
+pipeline/assets/references/
+# Superseded assets retained locally
+pipeline/assets/_legacy/
+
+# Local desktop dev virtualenv (CLAUDE.md: develop on desktop, deploy to Pi)
+.venv/
+
+# Local secrets for the illustration pipeline (Gemini / eBird API keys).
+# Used by pipeline/scripts on the desktop only — never committed, never on the Pi.
+.env
+.env.*
+!.env.example
+
+# Station profiles: only the shipped reference profile is public. A private overlay
+# lives in its own repo and is pointed at via STATION_PROFILE; a scratch
+# profile dropped in the tree here must never be committed to the open-source repo.
+/stations/*
+!/stations/example/
+/.venv-birdnet
+.sync_cursor*
+
+model/*.tflite
+
+# creds) in PLAINTEXT — must never be committed. State lives locally / in a remote
+# backend, not in git.
+
+
+
+# Generated bird art belongs to a station profile, never to the engine.
+/pipeline/assets/illustrations/

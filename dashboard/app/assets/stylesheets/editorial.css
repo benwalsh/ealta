@@ -1,0 +1,603 @@
+/* ============================================================================
+   editorial.css — the full editorial experience at "/" (the scrolling document).
+   Loaded LAST, after colors/pipeline/application, so it overrides the fixed
+   wall-shell body rules and adds the overview's own components. Every colour
+   comes from colors.css (var(--…)); nothing is hardcoded here.
+   ============================================================================ */
+
+/* Undo the fixed wall-app shell (panel.css sets body overflow:hidden / fixed
+   stage) so this page scrolls like a document. */
+html { height: auto; }
+body.ed {
+  height: auto; min-height: 100vh; overflow: visible;
+  background: var(--paper); color: var(--ink);
+  font-family: var(--serif);
+}
+
+.ed-main, .ed-top, .ed-foot { width: min(100%, 1120px); margin: 0 auto; padding-inline: 40px; }
+
+/* ---- Masthead — sticky + condensing ----
+   A full-width sticky wrapper carries the paper ground + rule so the full-bleed
+   collage scrolls cleanly under it; the inner .ed-top holds the 1120 content row
+   and shrinks (padding + wordmark + mark) once the page scrolls. */
+.ed-topbar {
+  position: sticky; top: 0; z-index: 50;
+  background: var(--paper); border-bottom: 1px solid var(--ink);
+}
+.ed-topbar.is-scrolled { box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05); }
+.ed-top {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 24px; padding-top: 26px; padding-bottom: 18px;
+  transition: padding 220ms ease;
+}
+.ed-topbar.is-scrolled .ed-top { padding-top: 11px; padding-bottom: 11px; }
+/* React renders the brand + nav items as <button>; strip the native chrome. */
+.ed-brand, .ed-navitem { background: transparent; border: 0; cursor: pointer; }
+.ed-brand { display: flex; align-items: center; gap: 12px; padding: 0; text-decoration: none; color: inherit; }
+.ed-mark { height: 46px; width: auto; display: block; transition: height 220ms ease; }
+/* The mark is dark line-art on transparency; flip it to read on the dark theme. */
+:root[data-theme="dark"] .ed-mark { filter: invert(1); }
+.ed-word {
+  font-family: var(--serif); font-weight: 500; font-size: 30px; line-height: 1;
+  letter-spacing: 0.01em; transition: font-size 220ms ease;
+}
+.ed-topbar.is-scrolled .ed-mark { height: 32px; }
+.ed-topbar.is-scrolled .ed-word { font-size: 21px; }
+.ed-nav { display: flex; align-items: center; gap: 28px; }
+/* Nav item — one language at a time; the toggle picks which (see .lang rules). */
+.ed-navitem {
+  font: 11px var(--mono); letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--ink-soft); text-decoration: none; transition: color 160ms ease;
+}
+.ed-navitem:hover { color: var(--ink); }
+.ed-navitem[aria-current="page"] { color: var(--ink); text-decoration: underline; text-underline-offset: 5px; }
+/* Desktop shows the word; the icon is a phone-only fallback (see the 560px block). */
+.ed-navitem .ti { display: none; }
+
+/* Site-wide language switch: <html data-lang> shows one, hides the other. */
+[data-lang="en"] .lang-ga { display: none; }
+[data-lang="ga"] .lang-en { display: none; }
+
+.ed-lang { display: inline-flex; align-items: center; }
+.ed-lang-opt {
+  background: transparent; border: 0; cursor: pointer; padding: 4px 8px;
+  font: 10px var(--mono); letter-spacing: 0.12em;
+  color: var(--ink-soft); transition: color 140ms ease;
+}
+.ed-lang-opt:hover { color: var(--ink); }
+.ed-lang-opt.is-on { color: var(--ink); }
+.ed-lang-opt + .ed-lang-opt { border-left: 1px solid var(--rule); }
+
+/* Time-window picker (1H · 12H · 24H · 7D · ALL) — plain muted mono text, not a
+   chromed pill, so it recedes in the top row; the active window is underlined. */
+.ed-window { display: inline-flex; align-items: center; gap: 3px; }
+.ed-win-opt {
+  background: transparent; border: 0; cursor: pointer; padding: 3px 4px;
+  font: 9px var(--mono); letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink-soft); transition: color 140ms ease;
+}
+.ed-win-opt:hover { color: var(--ink-2); }
+.ed-win-opt.is-on { color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
+
+/* Sign in — a plain mono link in the masthead voice, not a chromed icon button. */
+.ed-signin { margin: 0; }
+.ed-signin-btn {
+  background: transparent; border: 0; cursor: pointer; padding: 4px 2px;
+  font: 10px var(--mono); letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-soft); transition: color 140ms ease;
+}
+.ed-signin-btn:hover { color: var(--ink); }
+
+/* Account avatar (signed-in only) + dropdown menu — a small ringed image, no heavy
+   chrome. */
+/* The signed-in avatar links straight to /account (no dropdown; sign-out lives there). */
+.ed-avatar {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; padding: 0; border: 0; border-radius: 999px; cursor: pointer;
+  background: transparent; color: var(--ink-2); overflow: hidden; text-decoration: none;
+  box-shadow: inset 0 0 0 1px var(--rule); transition: box-shadow 140ms ease;
+}
+.ed-avatar:hover { box-shadow: inset 0 0 0 1px var(--ink-soft); }
+.ed-avatar-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ed-avatar-initial { font: 12px var(--mono); color: var(--ink-2); }
+
+/* ---- Greatest hits: the collage, distilled to a pinned horizontal line ----
+   Appears (fixed, just under the condensed masthead) once you scroll past the full
+   collage, so the loudest birds stay to hand as a strip. */
+.ed-hits {
+  position: fixed; top: 54px; left: 0; right: 0; z-index: 45;
+  display: flex; align-items: center; justify-content: center; flex-wrap: nowrap;
+  gap: clamp(6px, 2.4vw, 34px); padding: 7px 40px;
+  background: var(--paper); border-bottom: 1px solid var(--rule);
+  transform: translateY(-14px); opacity: 0; pointer-events: none;
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+.ed-hits.is-on { transform: translateY(0); opacity: 1; pointer-events: auto; }
+.ed-hit { background: transparent; border: 0; padding: 0; cursor: pointer; display: block; line-height: 0; }
+.ed-hit img { height: 42px; width: auto; display: block; transition: transform 140ms ease; }
+.ed-hit:hover img { transform: translateY(-2px) scale(1.09); }
+
+/* ---- The collage: dominant, full-bleed to the viewport edges ---- */
+.ed-stage {
+  position: relative;
+  width: 100vw; margin-left: calc(50% - 50vw);
+  padding: 30px clamp(20px, 5vw, 90px) 6px;
+}
+.ed-hero-collage { position: relative; display: flex; align-items: center; justify-content: center; }
+.ed-hero-collage .collage__bg { display: none; }
+.ed-hero-collage svg { width: 100%; height: auto; max-height: 76vh; display: block; }
+.ed-tip {
+  position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
+  margin: 0; padding: 7px 16px; background: var(--paper); border-radius: 6px;
+  box-shadow: var(--raised);
+  font: italic 14px/1.3 var(--serif); color: var(--ink);
+  white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 150ms ease;
+}
+.ed-tip[aria-hidden="false"] { opacity: 1; }
+.ed-tip .ct-name { font-style: normal; font-weight: 600; }
+.ed-tip .ct-n { font-style: normal; font-weight: 700; }
+.ed-tip .ct-w { color: var(--ink-soft); }
+
+/* ---- The TODAY section: the home page's daily voice + the one live gesture ----
+   Broadsheet, not a box: delineated by horizontal rules (never a bordered card),
+   in the page's own serif/mono + --rule hairlines. It spans the full content
+   column (like the stats page and footer) and sits well clear of the collage; the
+   prose keeps a comfortable reading measure while the sparkline runs full width. */
+.today-card {
+  margin: 52px auto 16px; padding: 26px 0 10px;
+  border-top: 1px solid var(--rule);
+}
+.today-head { display: flex; align-items: baseline; gap: 14px; }
+/* "TODAY" in the page's serif voice (inherited), letter-spaced and muted. Only
+   size/weight are set here so the font family is never overridden. */
+.today-word { font-weight: 500; font-size: 15px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-2); }
+/* The date is a data reading, so it takes the page's monospace like the nav + the
+   ambient footer — chrome and data are mono; only prose stays serif. */
+.today-date { font: 12px var(--mono); letter-spacing: 0.04em; color: var(--ink-soft); }
+.today-rule { border: 0; border-top: 1px solid var(--rule); margin: 15px 0 22px; }
+
+/* Summary: 2-4 left-aligned ink-bullet rows, in the page serif. The only prose —
+   held to a comfortable measure so the lines stay readable in the wide section. */
+.today-summary { margin: 0; padding: 0; list-style: none; max-width: 760px; }
+.today-summary li {
+  position: relative; padding-left: 22px; margin: 0 0 14px; text-align: left;
+  font-size: 17px; line-height: 1.7; color: var(--ink);
+}
+.today-summary li:last-child { margin-bottom: 0; }
+/* An ink-point marker — a small printed dot, not a disc, not an em dash. */
+.today-summary li::before {
+  content: ""; position: absolute; left: 3px; top: 0.66em;
+  width: 4px; height: 4px; border-radius: 50%; background: var(--ink-soft);
+}
+/* Primary bird name: bold, and a link to its card (the secondary name stays plain in its
+   parens; the binomial, where it appears, is italic). */
+.today-summary .bird { font-weight: 600; color: var(--ink); cursor: pointer; }
+.today-summary .bird[data-sci]:hover { text-decoration: underline; text-underline-offset: 2px; }
+.today-summary em, .today-summary i { font-style: italic; }
+
+/* Citations for the day's facts & folklore — a quiet mono line, a printer's mark set
+   behind the prose. The label, then each distinct source as a muted link. */
+.today-sources {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px;
+  margin: 20px 0 0; max-width: 760px;
+  font: 11px var(--mono); letter-spacing: 0.04em; color: var(--ink-soft);
+}
+.today-sources-label { text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-2); }
+.today-sources a {
+  color: var(--ink-soft); text-decoration: none;
+  border-bottom: 1px solid var(--rule); padding-bottom: 1px;
+}
+.today-sources a:hover { color: var(--ink); border-bottom-color: var(--ink-soft); }
+
+/* Journal — the diary of completed days. A calendar walks day to day; each entry reuses the
+   .today-card idiom (a completed day's note) followed by that day's new & notable. */
+.journal { margin: 0; }
+.cal { display: flex; align-items: center; gap: 14px; margin: 8px 0 0; }
+.cal-arrow {
+  background: transparent; border: 0; cursor: pointer; color: var(--ink-soft);
+  display: inline-flex; padding: 4px; transition: color 140ms ease;
+}
+.cal-arrow:hover:not(:disabled) { color: var(--ink); }
+.cal-arrow:disabled { opacity: 0.3; cursor: default; }
+.cal-arrow .ti { font-size: 20px; }
+.cal-date {
+  background: transparent; border: 0; border-bottom: 1px solid var(--rule);
+  padding: 3px 2px; color: var(--ink); font: 12px var(--mono); letter-spacing: 0.04em;
+}
+.cal-date:focus { outline: none; border-bottom-color: var(--ink); }
+.journal .today-card { margin-top: 20px; }
+
+/* The day's final figures — a quiet mono data line above the narration (mono = data, like
+   the almanac). The busiest bird links to its card. */
+.journal-figures {
+  display: flex; flex-wrap: wrap; gap: 8px 28px; margin: 0 0 22px; padding: 0; list-style: none;
+  font: 12px var(--mono); letter-spacing: 0.02em; color: var(--ink-2);
+}
+.journal-figures b { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+.journal-fig-bird {
+  background: none; border: 0; padding: 0; cursor: pointer; font: inherit; color: var(--ink);
+  text-decoration: underline; text-underline-offset: 2px; text-decoration-color: var(--rule);
+}
+.journal-fig-bird:hover { text-decoration-color: var(--ink-soft); }
+/* The day in Irish tradition — a quiet serif line under the dateline (curated feast / season). */
+.journal-daylore { margin: 0 0 20px; font: 14.5px var(--serif); font-style: italic; }
+.journal-daylore-title { color: var(--ink); }
+.journal-daylore-gloss { color: var(--ink-soft); }
+
+/* The closing lore — a poem or tale for one of the day's birds, set apart as a quiet quotation
+   with a left rule; the credit (and a link to the bird's card) in muted mono beneath. */
+.journal-lore { margin: 34px 0 4px; padding-left: 20px; border-left: 2px solid var(--rule); max-width: 640px; }
+.journal-lore-text { margin: 0; font: 16px/1.72 var(--serif); color: var(--ink); white-space: pre-line; }
+.journal-lore.is-poem .journal-lore-text { font-style: italic; }
+.journal-lore-credit { margin-top: 12px; font: 11px var(--mono); letter-spacing: 0.02em; color: var(--ink-soft); }
+.journal-lore-bird {
+  background: none; border: 0; padding: 0; cursor: pointer; font: inherit; color: var(--ink-2);
+  text-decoration: underline; text-underline-offset: 2px; text-decoration-color: var(--rule);
+}
+.journal-lore-bird:hover { color: var(--ink); }
+
+/* The stilled day-shape curve + its simple hour ticks. */
+.journal-spark { margin: 4px 0 26px; }
+.journal-spark .today-spark-svg { height: 72px; }
+.journal-spark-axis {
+  display: flex; justify-content: space-between; margin-top: 5px;
+  font: 10px var(--mono); letter-spacing: 0.02em; color: var(--ink-soft);
+}
+
+/* The sparkline: its own quiet band between the collage and the TODAY text —
+   full content width, with room above (off the collage) and the TODAY section's
+   own top margin providing the gap below. */
+/* Locks and stacks under the hits strip on scroll (top set inline from the measured
+   strip heights); paper-backed with a hairline so the TODAY text scrolls cleanly under. */
+.today-spark {
+  margin: 46px auto 0;
+  position: sticky; z-index: 44;
+  /* Opaque paper so content scrolls cleanly under when it stacks — but no hairline: the
+     page keeps its horizontal rules to a minimum, the whitespace does the separating. */
+  background: var(--paper); padding-bottom: 10px;
+}
+/* Chrome: the time-window control and its total, grouped together at the top-left as
+   one unit (the total used to float off at the far right and read as detached). */
+.today-spark-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 8px; }
+.today-spark-total { font: 13px var(--mono); color: var(--ink); font-variant-numeric: tabular-nums; }
+.today-spark-svg { display: block; width: 100%; height: 104px; }
+/* A thin green stroke — the only green on the page. */
+.today-spark-line { stroke: var(--green); stroke-width: 1.75; vector-effect: non-scaling-stroke; }
+/* Stilled (Journal): the finished day's shape in muted ink, no fill — the historical twin of
+   Live's living green line. */
+.today-spark-plot.is-muted .today-spark-line { stroke: var(--ink-soft); }
+.today-spark-plot.is-muted .today-spark-fill { display: none; }
+
+/* A blind spot (mic down): an explicit data-availability state, NOT a zero. A pale
+   neutral band over the real duration, with a centred "No data · 06:00–08:48" label
+   (an HTML overlay, so the stretched viewBox can't distort the type). The green series
+   stops before it and resumes after — the two are never connected. */
+.today-spark-plot { position: relative; }
+.today-spark-gap { fill: var(--ink-soft); opacity: 0.09; }
+.today-spark-gap-label {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  font: 11px var(--mono); letter-spacing: 0.02em; color: var(--ink-soft);
+  pointer-events: none; padding: 0 4px; box-sizing: border-box; line-height: 1.2;
+}
+.today-spark-gap-label .gap-short { display: none; }
+.today-anchors {
+  position: relative; height: 16px; margin-top: 4px;
+  font: 10.5px var(--mono); letter-spacing: 0.02em; color: var(--ink-soft);
+}
+.today-anchors span { position: absolute; top: 0; white-space: nowrap; }
+
+/* The almanac — ambient weather/moon/sun/tide/place readings, its own row directly
+   under the sparkline. Muted mono line-icon + label pairs, wrapping. Never emoji. */
+.today-almanac {
+  display: flex; flex-wrap: wrap; gap: 12px 32px; margin: 14px 0 0; padding: 12px 0; list-style: none;
+  font: 12px var(--mono); letter-spacing: 0.02em; color: var(--ink-2);
+  position: sticky; z-index: 43;
+  background: var(--paper); /* opaque, no hairline — see .today-spark */
+}
+.today-almanac li { display: inline-flex; align-items: center; gap: 7px; }
+.today-almanac .ti { font-size: 16px; color: var(--ink-soft); line-height: 1; }
+
+/* The station's live status, leading the almanac: a pulsing green dot when the mic→BirdNET
+   loop is alive, a still red one when it's stalled. The pulse is the one motion the page
+   allows itself besides the sparkline — slow and faint, a heartbeat not a blink. */
+.alm-status { color: var(--ink); }
+.alm-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.alm-dot.is-listening { background: var(--green); animation: alm-pulse 2.4s ease-in-out infinite; }
+.alm-dot.is-offline { background: var(--red); }
+@keyframes alm-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) { .alm-dot.is-listening { animation: none; } }
+
+/* The one section heading used across Live's below-strip blocks (New & notable, Recently
+   heard) — a single quiet mono label, no border bars, no size variants. Parsimony. */
+.section-tag {
+  display: block; margin: 0 0 10px; font: 700 9px var(--mono); letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--accent-2);
+}
+
+/* New & notable — the day's newsworthy birds, grouped into info-only lines (rare
+   visitors / returning migrants / first recordings / your favourites). No folklore —
+   that lives in the Journal. No rules — the whitespace sets it off. A bird is a button. */
+.notable { margin: 44px auto 0; }
+.notable-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.notable-row { display: flex; align-items: baseline; gap: 6px 14px; flex-wrap: wrap; }
+.notable-kind {
+  flex: none; font: 8.5px var(--mono); letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--ink-soft);
+}
+.notable-names { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 9px; }
+.notable-name {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font: 15px ui-serif, "Iowan Old Style", Georgia, serif; color: var(--ink);
+}
+.notable-name:hover { text-decoration: underline; text-underline-offset: 3px; }
+.notable-sep { color: var(--ink-soft); }
+
+/* ---- Numbers band ---- */
+.ed-band { display: grid; grid-template-columns: repeat(2, 1fr); gap: 34px; margin: 30px 0; }
+/* The stats page's three continuity cards ("day N of listening"). */
+.stat-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 34px; margin: 4px 0 34px; }
+.ed-num { border-top: 1px solid var(--ink); padding-top: 16px; }
+.ed-num .n { display: block; font: 500 46px/0.95 var(--serif); font-variant-numeric: tabular-nums; }
+.ed-num .lbl { display: block; margin-top: 12px; font: 10px var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink); }
+.ed-num .sub { display: block; margin-top: 4px; font: italic 13px var(--serif); color: var(--ink-soft); }
+
+/* ---- Columns ---- */
+.ed-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; margin: 24px 0 8px; }
+/* Recently heard — Live's running log, a single ruled list. */
+.recent { margin-top: 44px; }
+.recent .ed-list { max-width: 620px; }
+.ed-grp + .ed-grp { margin-top: 30px; }
+.ed-col-head { display: flex; align-items: baseline; justify-content: space-between; }
+.ed-cols h2 { margin: 0 0 6px; font: 700 10px var(--mono); letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink); border-left: 2px solid var(--accent); padding-left: 10px; }
+.ed-viewall { font: 9px var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-soft); text-decoration: none; }
+.ed-viewall:hover { color: var(--ink); }
+.ed-list { list-style: none; margin: 0; padding: 0; }
+.ed-row { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 9px 0; text-decoration: none; color: inherit; box-shadow: inset 0 -1px 0 var(--hairline); }
+a.ed-row:hover, button.ed-row:hover { background: var(--paper-2); }
+button.ed-row { width: 100%; background: transparent; border: 0; cursor: pointer; font: inherit; text-align: left; }
+button.barlist-row { width: 100%; background: transparent; border: 0; cursor: pointer; padding: 0; }
+.stats2-side button.row { width: 100%; background: transparent; border: 0; cursor: pointer; font: inherit; text-align: left; }
+
+/* Directory (atlas) controls + cards, rendered as <button> in React. */
+.atlas-scope button, .atlas-sort button {
+  /* width:auto + height:auto override panel.css's 30x26 icon-button sizing, which
+     would clip these text labels and make them overlap. */
+  width: auto; height: auto;
+  background: transparent; border: 0; cursor: pointer; color: var(--ink-soft);
+  font: 10px var(--mono); letter-spacing: 0.16em; padding: 7px 13px;
+  border-radius: 999px; text-transform: uppercase; transition: color 200ms ease;
+}
+.atlas-scope button:hover, .atlas-sort button:hover { color: var(--ink); }
+.atlas-scope button[aria-current="true"], .atlas-sort button[aria-current="true"] {
+  color: var(--ink); background: var(--paper); box-shadow: var(--raised);
+}
+button.bird-card { width: 100%; background: transparent; cursor: pointer; font: inherit; text-align: left; color: inherit; }
+.ed-row-name { font: 15px/1.3 var(--serif); color: var(--ink); }
+.ed-gloss { font-style: italic; color: var(--ink-soft); font-size: 0.82em; margin-left: 7px; }
+.ed-row-meta { flex: 0 0 auto; font: 11px var(--mono); color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.ed-row-meta.yr { color: var(--accent-2); letter-spacing: 0.03em; }
+.ed-empty { margin: 8px 0 0; font: italic 14px var(--serif); color: var(--ink-soft); }
+
+/* ---- Stats page: broadsheet, the lifetime record ----
+   No cards, no tiles, no rounded corners — ruled hairlines and right angles, the
+   same idiom as the home page. Serif = names; mono = every count/date/label. */
+.st { margin: 0; }
+
+/* 1. Continuity band — the lifetime figures as a masthead dateline, not tiles. */
+.st-cont {
+  display: flex; flex-wrap: wrap; gap: 18px 72px; align-items: baseline;
+  padding: 24px 0 26px; border-bottom: 1px solid var(--ink);
+}
+.st-cont-item { display: flex; flex-direction: column; gap: 8px; }
+.st-fig { font: 400 38px/0.9 var(--mono); color: var(--ink); font-variant-numeric: tabular-nums; }
+.st-lbl { font: 10px var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-soft); }
+
+/* Section header + block rule. */
+.st-head {
+  margin: 0 0 14px; font: 500 10px var(--mono); letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--ink-2);
+}
+/* Title + window picker on one line above the ranking. */
+.st-head-row { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+.st-head-row .st-head { margin-bottom: 14px; }
+.st-empty { color: var(--ink-soft); font-style: italic; margin: 4px 0 0; }
+.st-block { padding: 28px 0; border-bottom: 1px solid var(--rule); }
+
+/* 2. Most heard — a ranked table; proportion shown by a thin ink measure. */
+.st-ranked { list-style: none; margin: 0; padding: 0; }
+.st-row {
+  display: grid; grid-template-columns: minmax(150px, 1fr) minmax(60px, 1.6fr) auto;
+  gap: 24px; align-items: baseline; width: 100%; text-align: left; cursor: pointer;
+  background: transparent; border: 0; padding: 8px 0; color: inherit;
+  box-shadow: inset 0 -1px 0 var(--rule);
+}
+.st-row:hover .st-name { color: var(--ink); }
+.st-name { font: 16px var(--serif); color: var(--ink); }
+.st-gloss { font-style: italic; color: var(--ink-soft); font-size: 0.86em; margin-left: 8px; }
+/* The measure: a slim ink hairline of proportional width — not a filled block. */
+.st-measure { align-self: center; position: relative; height: 2px; background: var(--rule); }
+.st-measure i { position: absolute; inset: 0 auto 0 0; height: 100%; background: var(--ink-2); display: block; }
+.st-count { font: 13px var(--mono); color: var(--ink); font-variant-numeric: tabular-nums; text-align: right; min-width: 4ch; }
+
+/* 3. By period + Life list — two ruled columns, divided by a vertical hairline. */
+.st-cols { display: grid; grid-template-columns: 1fr 1fr; }
+.st-cols .st-block { border-bottom: 0; }
+.st-cols > .st-block:first-child { padding-right: 48px; }
+.st-col-right { border-left: 1px solid var(--rule); padding-left: 48px; }
+.st-rows { list-style: none; margin: 0; padding: 0; }
+.st-rrow {
+  display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: baseline; width: 100%;
+  padding: 8px 0; text-align: left; background: transparent; border: 0; color: inherit;
+  box-shadow: inset 0 -1px 0 var(--rule);
+}
+.st-rbtn { cursor: pointer; }
+.st-rbtn:hover .st-name { color: var(--ink); }
+.st-rlabel { font: 15px var(--serif); color: var(--ink); }
+.st-rfig { font: 13px var(--mono); color: var(--ink); font-variant-numeric: tabular-nums; }
+.st-rdate { font: 12px var(--mono); color: var(--ink-soft); letter-spacing: 0.02em; }
+
+/* ---- Directory (Eolaí): the illustrated guide, broadsheet — no cards/pills ---- */
+.dir { margin: 0; }
+.dir-loading { text-align: center; padding: 60px; color: var(--ink-soft); }
+/* Controls — plain mono toggles like the window picker; active is underlined. The row
+   sticky-stacks under the (condensed) masthead as the grid scrolls, on an opaque paper
+   background. Only a hairline sets it off — the one hard black line belongs to the top bar. */
+.dir-controls {
+  display: flex; flex-wrap: wrap; gap: 12px 40px; align-items: baseline;
+  padding: 22px 0 18px; border-bottom: 1px solid var(--rule);
+  position: sticky; top: 54px; z-index: 42; background: var(--paper);
+}
+.dir-group { display: inline-flex; align-items: center; gap: 6px; }
+.dir-opt {
+  background: transparent; border: 0; cursor: pointer; padding: 3px 4px;
+  font: 10px var(--mono); letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink-soft); transition: color 140ms ease;
+}
+.dir-opt:hover { color: var(--ink-2); }
+.dir-opt.is-on { color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
+/* Name filter — a quiet mono field, a hairline underline not a box; sits to the right
+   of the toggles and narrows the grid as you type. */
+.dir-filter {
+  margin-left: auto; min-width: 140px;
+  background: transparent; border: 0; border-bottom: 1px solid var(--rule);
+  padding: 3px 2px; color: var(--ink);
+  font: 12px var(--mono); letter-spacing: 0.02em;
+}
+.dir-filter::placeholder { color: var(--ink-soft); }
+.dir-filter:focus { outline: none; border-bottom-color: var(--ink); }
+.dir-filter::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+
+/* The grid — illustrations on paper, no boxes. */
+.dir-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 44px 30px; padding: 34px 0 40px;
+}
+.dir-item {
+  display: flex; flex-direction: column; align-items: flex-start;
+  background: transparent; border: 0; padding: 0; cursor: pointer; text-align: left;
+  color: inherit; font: inherit; /* buttons don't inherit the page serif otherwise */
+  -webkit-tap-highlight-color: transparent; /* no grey box flash on click/tap */
+}
+/* No box on click/hover — the plate is a picture on paper, not a control chrome.
+   Keep a quiet ring for keyboard focus only (accessibility), never for the mouse. */
+.dir-item:focus { outline: none; }
+.dir-item:focus-visible { outline: 1.5px solid var(--rule); outline-offset: 4px; }
+.dir-plate {
+  width: 100%; height: 132px; margin-bottom: 14px;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.dir-plate img { max-width: 100%; max-height: 132px; object-fit: contain; display: block; }
+/* Conservation status pill — above the name, mirroring the detail card; hover for the
+   gloss (title=). A small labelled mark, not a shouty badge. */
+.dir-pill {
+  display: inline-flex; align-items: center; gap: 5px; margin-bottom: 5px;
+  font: 10px var(--mono); letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--ink-2); cursor: help;
+}
+/* The naming convention, everywhere: primary (displayed-language) name BOLD, the other
+   language plain in parentheses after it, the binomial in italics. */
+.dir-name { font-size: 16.5px; font-weight: 600; color: var(--ink); }
+.dir-item:hover .dir-name { text-decoration: underline; text-underline-offset: 3px; }
+.dir-gloss { font-style: normal; font-weight: 400; font-size: 0.88em; color: var(--ink-soft); }
+.dir-sci { display: block; font-style: italic; font-size: 12px; color: var(--ink-soft); margin-top: 3px; }
+/* All-time / today / first-heard on ONE tight line, pipe-separated:
+   "1,838 all | 16 today | 7d first". Mono, tabular figures, no wrap. */
+.dir-stats {
+  display: flex; flex-wrap: nowrap; align-items: baseline; margin-top: 9px;
+  font: 10.5px var(--mono); letter-spacing: 0; color: var(--ink-soft); white-space: nowrap;
+}
+.dir-stat { display: inline-flex; gap: 4px; }
+.dir-stat + .dir-stat::before { content: "|"; color: var(--rule); margin: 0 7px; }
+.dir-stats b { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+/* BoCCI conservation status — a small functional data mark. */
+.dir-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex: none; }
+.dir-dot.red { background: var(--red); }
+.dir-dot.amber { background: var(--amber); }
+.dir-dot.green { background: var(--green); }
+/* Un-heard species: greyed, still browsable. */
+.dir-item.unseen .dir-plate img { filter: grayscale(0.9) opacity(0.4); transition: filter 220ms ease; }
+.dir-item.unseen:hover .dir-plate img { filter: none; }
+.dir-item.unseen .dir-name, .dir-item.unseen .dir-gloss { color: var(--ink-soft); }
+
+/* Follow — a species subscription worn as a quiet checkbox. Shown only to
+   signed-in users; the card is a <button>, so the control is a sibling in a
+   positioned cell (never nested). Off = muted engraved outline, on = inked accent.
+   A line icon in a muted weight, in keeping with the ink-on-paper voice. */
+.dir-cell { position: relative; }
+.dir-cell > .dir-item { width: 100%; }
+.follow {
+  background: transparent; border: 0; padding: 0; cursor: pointer;
+  color: var(--ink-soft); line-height: 1;
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: color 160ms ease;
+}
+.follow .ti { font-size: 18px; opacity: 0.55; transition: opacity 160ms ease; }
+.follow:hover { color: var(--ink-2); }
+.follow:hover .ti { opacity: 1; }
+.follow.is-on { color: var(--accent); }
+.follow.is-on .ti { opacity: 1; }
+/* Corner mark on a directory plate — top-LEFT, matching the follow control's place on the
+   detail card; clear of the bottom-aligned bird. */
+.follow-card { position: absolute; top: 0; left: 0; z-index: 1; padding: 4px; }
+.follow-card .ti { font-size: 19px; }
+/* Modal — icon + word under the binomial, in the mono label voice. */
+.follow-full {
+  margin: 12px 0 2px;
+  font: 11px var(--mono); letter-spacing: 0.06em; text-transform: uppercase;
+}
+
+/* ---- Footer ---- */
+.ed-foot {
+  display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;
+  margin-top: 40px; padding: 22px 40px 34px; border-top: 1px solid var(--rule);
+  font: 10px var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-soft);
+}
+.ed-foot .dot { color: var(--rule); }
+.ed-foot .foot-coords { color: var(--ink-soft); letter-spacing: 0.08em; text-transform: none; }
+
+/* ---- Responsive: stack for tablet / phone ---- */
+@media (max-width: 860px) {
+  .ed-hero { grid-template-columns: 1fr; gap: 24px; }
+  .ed-cols { grid-template-columns: 1fr; gap: 34px; }
+  .ed-dek { max-width: none; }
+  /* Stats: the two ruled columns stack, the vertical hairline becomes horizontal. */
+  .st-cols { grid-template-columns: 1fr; }
+  .st-cols > .st-block:first-child { padding-right: 0; padding-bottom: 0; }
+  .st-col-right { border-left: 0; padding-left: 0; border-top: 1px solid var(--rule); padding-top: 24px; }
+}
+@media (max-width: 560px) {
+  .ed-main, .ed-top, .ed-foot { padding-inline: 20px; }
+  .ed-band { grid-template-columns: 1fr; gap: 18px; }
+  .ed-lede { font-size: 28px; }
+  .ed-tag { display: none; }
+
+  /* Header on a phone: drop the wordmark and reduce the section tabs to icons, so the
+     whole bar — mark, tabs, language, account — stays on ONE line instead of wrapping
+     to two. */
+  .ed-top { padding-top: 14px; padding-bottom: 12px; gap: 10px; }
+  .ed-mark { height: 34px; }
+  .ed-word { display: none; }
+  .ed-nav { gap: 6px 14px; }
+  .ed-navitem { padding: 2px; }
+  .ed-navitem-label { display: none; }
+  .ed-navitem .ti { display: inline-flex; font-size: 22px; letter-spacing: 0; }
+  .ed-navitem[aria-current="page"] { text-decoration: none; color: var(--green); }
+
+  /* The sparkline shrinks so the day's TODAY text gets the room: a shorter line and
+     tighter margins, its total already grouped with the window control up top. */
+  .today-spark { margin-top: 30px; }
+  .today-spark-svg { height: 64px; }
+  .today-anchors { font-size: 9.5px; }
+  /* On a phone the band is too narrow for a legible label, so drop the "No data" text
+     entirely — the pale band alone still reads as a gap. */
+  .today-spark-gap-label { display: none; }
+
+  /* The almanac stacks — each reading on its own full row, complete and never
+     clipped, the way the TODAY bird lines stack. */
+  .today-almanac { flex-direction: column; gap: 11px; margin-top: 16px; }
+
+  /* No sticky-stacking on a phone: the strips (esp. the column almanac) would eat the
+     small screen. They just scroll normally here. */
+  .today-spark, .today-almanac { position: static; }
+}

@@ -1,0 +1,19 @@
+-# The 800x480 collage SVG. Shared by the web view (where the hovered/tapped bird
+-# is captioned by the HTML pill in show.html.haml) and the bare /panel endpoint
+-# the Inky shooter screenshots. No labels in the SVG — the Inky is caption-free.
+- serif = "Baskerville, 'Hoefler Text', 'EB Garamond', Georgia, serif"
+%svg.collage{ viewBox: "0 0 #{@collage.width} #{@collage.height}", width: @collage.width, height: @collage.height, xmlns: "http://www.w3.org/2000/svg" }
+  -# Paper ground for the Inky screenshot; hidden in the web view (see application.css).
+  %rect.collage__bg{ x: 0, y: 0, width: @collage.width, height: @collage.height, fill: "var(--paper, #fff)" }
+  - if @collage.species_count.zero?
+    %text{ x: @collage.width / 2, y: @collage.height / 2, "text-anchor": "middle", "font-family": serif, "font-size": 30, "font-style": "italic", fill: "var(--ink-soft, #8b8b91)" }
+      ag éisteacht…
+  - @collage.nodes.each do |node|
+    %g.collage__bird{ "data-action": "mouseenter->collage#caption mouseleave->collage#clear click->collage#open", "data-sci": node.sci, "data-ga": node.ga, "data-en": node.en, "data-count": node.count }
+      - if node.image
+        -# Some birds are mirrored to face the other way (node.flip). The SVG
+        -# transform flips about the bird's centre (real SVG render + shooter);
+        -# data-flip lets the /emulator canvas compositor mirror it too.
+        %image{ href: node.image, x: (node.cx - (node.w / 2)).round(2), y: (node.cy - (node.h / 2)).round(2), width: node.w, height: node.h, preserveAspectRatio: "xMidYMid meet", transform: (node.flip ? "translate(#{(node.cx * 2).round(2)} 0) scale(-1 1)" : nil), "data-flip": (node.flip ? "1" : nil) }
+      - else
+        %circle{ cx: node.cx, cy: node.cy, r: node.r, fill: node.fill }

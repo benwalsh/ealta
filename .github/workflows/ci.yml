@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ruby:
+    name: Ruby — rubocop + rspec (SQLite)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '4.0.5'
+          bundler-cache: true
+          working-directory: dashboard
+      - name: RuboCop
+        run: bin/rubocop
+      - name: Prepare test DB (SQLite)
+        run: bin/rails db:prepare
+        env:
+          RAILS_ENV: test
+      - name: RSpec
+        run: bin/rspec
+        env:
+          RAILS_ENV: test
+
+  migrations-mysql:
+    name: Migrations are MySQL-legal
+    # The device runs SQLite, the cloud mirror runs MySQL. A migration can be valid on
+    # SQLite and rejected by MySQL (e.g. a literal default on a JSON column, error 1101).
+    # This runs every migration against a real MySQL, the one guard local dev can't give.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dashboard
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: ealta_ci
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=5s --health-timeout=5s --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '4.0.5'
+          bundler-cache: true
+          working-directory: dashboard
+        env:
+          BUNDLE_WITH: cloud # install trilogy (the MySQL adapter)
+      - name: Run all migrations on MySQL
+        run: bin/rails db:prepare
+        env:
+          RAILS_ENV: cloud
+          BUNDLE_WITH: cloud
+          SECRET_KEY_BASE: ci-dummy-not-a-real-secret
+          DB_NAME: ealta_ci
+          DB_USER: root
+          DB_PASSWORD: root
+          DB_HOST: 127.0.0.1
+          DB_PORT: '3306'
+
+  python:
+    name: Python — ruff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Ruff lint
+        run: uv run --with ruff ruff check birdnet pipeline/scripts shooter
+      - name: Ruff format
+        run: uv run --with ruff ruff format --check birdnet pipeline/scripts shooter
+
+  javascript:
+    name: JavaScript — eslint + tsc + prettier
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - name: ESLint
+        run: bunx eslint app/javascript
+      - name: Typecheck
+        run: bunx tsc --noEmit
+      - name: Prettier
+        run: bunx prettier --check app/javascript

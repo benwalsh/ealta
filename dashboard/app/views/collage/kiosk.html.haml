@@ -1,0 +1,166 @@
+!!!
+%html{ lang: "en" }
+  %head
+    %meta{ charset: "utf-8" }/
+    %meta{ name: "viewport", content: "width=device-width, initial-scale=1" }/
+    %title #{Station.site_name} · Kiosk
+    %link{ rel: "icon", type: "image/png", href: station_brand_path('favicon') }
+    = stylesheet_link_tag 'colors'
+    = vite_client_tag
+    = vite_javascript_tag 'application'
+    :css
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; }
+      body {
+        height: 100vh; overflow: hidden; background: var(--paper); color: var(--ink);
+        font-family: "Baskerville", "Hoefler Text", "EB Garamond", Georgia, serif;
+      }
+      /* Four cards stacked; only .is-active shows. A slow fade masks the swap so a
+         passive monitor never flashes — no reload between cards. */
+      .card {
+        position: absolute; inset: 0; opacity: 0; visibility: hidden;
+        transition: opacity 0.9s ease, visibility 0s linear 0.9s;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        padding: 6vmin; text-align: center;
+      }
+      .card.is-active { opacity: 1; visibility: visible; transition: opacity 0.9s ease; }
+      .stage { width: min(100%, 1100px); display: flex; flex-direction: column; align-items: center; }
+
+      .kicker { margin: 0 0 2.4vmin; font: 700 1.7vmin ui-monospace, Menlo, monospace;
+                letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-soft); }
+      .quiet { color: var(--ink-soft); }
+
+      /* Card 1 — collage */
+      .wordmark { margin: 0; font-size: 8vmin; font-weight: 500; line-height: 0.95; }
+      .place { margin: 1vmin 0 0; font-style: italic; font-size: 2.8vmin; color: var(--ink-soft); }
+      .collage-area { width: 100%; margin: 2vmin 0; display: flex; justify-content: center; }
+      .collage-area svg { width: 100%; max-height: 66vh; height: auto; display: block; }
+      .caption { margin: 0; font-style: italic; font-size: 2.6vmin; color: var(--ink-soft); }
+
+      /* Card 2 — stats */
+      .stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 3vmin 6vmin; width: 100%; }
+      .stat { border-top: 2px solid var(--ink); padding-top: 2vmin; text-align: left; }
+      .stat .n { display: block; font-size: 9vmin; line-height: 0.9; font-variant-numeric: tabular-nums; }
+      .stat .lbl { display: block; margin-top: 1.4vmin; font: 700 1.5vmin ui-monospace, Menlo, monospace;
+                   letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-soft); }
+      .periods { list-style: none; width: 100%; margin: 4vmin 0 0; padding: 0; }
+      .periods li { display: flex; justify-content: space-between; padding: 1.6vmin 0;
+                    border-bottom: 1px solid var(--rule); font-size: 2.8vmin; }
+      .periods b { font-weight: 500; font-variant-numeric: tabular-nums; }
+
+      /* Card 3 — focus */
+      .focus-art { height: 46vh; display: flex; align-items: center; justify-content: center; margin-bottom: 2vmin; }
+      .focus-art img { max-width: 100%; max-height: 46vh; object-fit: contain; }
+      .focus-dot { width: 34vmin; height: 34vmin; border-radius: 50%; background: var(--paper-3); }
+      .focus-name { margin: 0; font-size: 6.4vmin; line-height: 1.02; font-weight: 500; }
+      .focus-en { margin: 1vmin 0 0; font-style: italic; font-size: 3.2vmin; color: var(--ink-soft); }
+      .focus-meta { display: flex; justify-content: center; gap: 4vmin; margin-top: 3vmin;
+                    font: 700 1.7vmin ui-monospace, Menlo, monospace; letter-spacing: 0.1em;
+                    text-transform: uppercase; color: var(--ink-soft); }
+
+      /* Card 4 — general (almanac + recently heard) */
+      .almanac { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4vmin; width: 100%; }
+      .almanac .tile { border-top: 2px solid var(--ink); padding-top: 2vmin; text-align: left; }
+      .almanac .ico { width: 8vmin; height: 8vmin; stroke: var(--ink); fill: none; stroke-width: 1.25; }
+      .almanac .big { display: block; margin-top: 1.6vmin; font-size: 4vmin; line-height: 1.02; }
+      .almanac .lbl { display: block; margin-top: 1vmin; font: 700 1.4vmin ui-monospace, Menlo, monospace;
+                      letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-soft); }
+      .recent { width: 100%; margin-top: 5vmin; }
+      .recent ul { list-style: none; margin: 0; padding: 0; }
+      .recent li { display: flex; justify-content: space-between; align-items: baseline; gap: 4vmin;
+                   padding: 1.4vmin 0; border-bottom: 1px solid var(--rule); }
+      .recent .rname { font-size: 3vmin; }
+      .recent .rtime { flex: 0 0 auto; font: 1.9vmin ui-monospace, Menlo, monospace; color: var(--ink-soft); }
+      .empty { font-size: 4vmin; font-style: italic; color: var(--ink-soft); }
+  %body{ data: { controller: "kiosk", "kiosk-dwell-value": (@dwell_seconds * 1000) } }
+    -# 1 — the collage
+    %section.card{ data: { "kiosk-target": "screen" }, "aria-label": "Bird collage" }
+      .stage
+        %h1.wordmark= Station.site_name
+        %p.place= Station.place&.dig(:en)
+        .collage-area
+          = render partial: 'panel'
+        %p.caption
+          - if @collage.species_count.positive?
+            heard around the station today
+          - else
+            ag éisteacht…
+
+    -# 2 — the numbers
+    %section.card{ data: { "kiosk-target": "screen" }, "aria-label": "Today's statistics" }
+      .stage
+        %p.kicker Today at the listening station
+        .stat-grid
+          .stat
+            %span.n= @species_today
+            %span.lbl species today
+          .stat
+            %span.n= number_with_delimiter(@detections_today)
+            %span.lbl detections today
+          .stat
+            %span.n= @species_all_time
+            %span.lbl life list
+          .stat
+            %span.n= number_with_delimiter(@detections_all_time)
+            %span.lbl all detections
+        %ul.periods
+          - @periods.each do |label, count|
+            %li
+              %span= label
+              %b= number_with_delimiter(count)
+
+    -# 3 — a bird in focus
+    %section.card{ data: { "kiosk-target": "screen" }, "aria-label": "Featured bird" }
+      .stage
+        - if @featured
+          - name = @featured.name
+          - moment = station_time(@featured.last_time)
+          .focus-art
+            - if (url = bird_illustration(name.sci))
+              %img{ src: url, alt: name.en }
+            - else
+              .focus-dot
+          %h2.focus-name= name.ga || name.en
+          %p.focus-en= name.en
+          .focus-meta
+            %span= "#{@featured.count} calls"
+            %span= heard_ago(moment)
+            %span= "#{(@featured.confidence * 100).round}%"
+        - else
+          %p.empty Waiting for the first confident bird
+
+    -# 4 — the almanac
+    %section.card{ data: { "kiosk-target": "screen" }, "aria-label": "The station this morning" }
+      .stage
+        %p.kicker The station this morning
+        .almanac
+          .tile
+            %svg.ico{ viewBox: '0 0 24 24' }
+              %path{ d: 'M7 18a4 4 0 0 1 0-8 5 5 0 0 1 9.6-1.3A3.6 3.6 0 0 1 17.5 18Z' }
+            %span.big 14°C
+            %span.lbl weather
+          .tile
+            %svg.ico{ viewBox: '0 0 24 24' }
+              %path{ d: 'M16 3a9 9 0 1 0 4 7 7 7 0 0 1-4-7Z' }
+            %span.big= @moon.name
+            %span.lbl moon
+          .tile
+            %svg.ico{ viewBox: '0 0 24 24' }
+              %path{ d: 'M12 21s7-5.2 7-11a7 7 0 0 0-14 0c0 5.8 7 11 7 11Z' }
+              %circle{ cx: 12, cy: 10, r: 2.2 }
+            %span.big= Station.place&.dig(:en)
+            %span.lbl station
+          .tile
+            %svg.ico{ viewBox: '0 0 24 24' }
+              %path{ d: 'M4 17h16M6 13c2.2-3.8 4.1-5.7 6-5.7s3.8 1.9 6 5.7' }
+            %span.big Dawn
+            %span.lbl next chorus
+        .recent
+          %p.kicker Recently heard
+          %ul
+            - @recent.first(5).each do |item|
+              - name = item.name
+              - moment = station_time(item.last_time)
+              %li
+                %span.rname= name.ga || name.en
+                %span.rtime= moment&.strftime('%H:%M')

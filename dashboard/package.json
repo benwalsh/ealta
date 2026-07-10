@@ -1,0 +1,41 @@
+{
+  "name": "ealta-dashboard",
+  "private": true,
+  "scripts": {
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint app/javascript",
+    "lint:fix": "eslint app/javascript --fix",
+    "format": "prettier --write app/javascript",
+    "format:check": "prettier --check app/javascript"
+  },
+  "dependencies": {
+    "@fontsource/eb-garamond": "^5.2.7",
+    "@fontsource/ibm-plex-mono": "^5.2.7",
+    "@hotwired/stimulus": "^3.2.2",
+    "@hotwired/turbo-rails": "^8.0.23",
+    "@tabler/icons-webfont": "^3.44.0",
+    "@tanstack/react-query": "^5.101.2",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "volta": {
+    "node": "24.13.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.18.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "eslint": "^9.18.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-react-refresh": "^0.4.18",
+    "globals": "^15.14.0",
+    "prettier": "^3.4.2",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.20.0",
+    "vite": "^8.0.0",
+    "vite-plugin-ruby": "^5.2.0"
+  }
+}

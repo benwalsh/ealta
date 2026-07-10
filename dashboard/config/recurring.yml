@@ -1,0 +1,8 @@
+# Solid Queue recurring tasks, per environment. Only the cloud runs the sweep — the
+# Pi never sends mail. Schedule is fugit/cron in the process timezone (UTC in the
+# container), so 06:00 here is early morning in Ireland: a digest of the previous
+# complete day, which is exactly what DailyEmailSweep defaults to (yesterday).
+cloud:
+  daily_email_sweep:
+    class: DailyEmailSweep
+    schedule: "every day at 6am"

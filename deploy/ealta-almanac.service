@@ -1,0 +1,16 @@
+[Unit]
+# Refreshes storage/almanac.json (weather + tide + coordinates) from Open-Meteo,
+# read by the collage web app's home page. Best-effort and offline-tolerant: a
+# failed run leaves the last good cache untouched. Paired with the .timer.
+Description=Refresh the station almanac (weather + tide)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=pi
+WorkingDirectory=/home/pi/ealta/dashboard
+EnvironmentFile=/home/pi/ealta/.env
+Environment=RAILS_ENV=production
+Environment=LANG=C.UTF-8 LC_ALL=C.UTF-8
+ExecStart=/usr/bin/env bash -lc 'cd /home/pi/ealta/dashboard && bin/rails ealta:almanac_refresh'

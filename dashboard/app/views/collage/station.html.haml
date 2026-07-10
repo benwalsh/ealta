@@ -1,0 +1,20 @@
+!!!
+%html{ lang: "en" }
+  %head
+    %meta{ charset: "utf-8" }/
+    %meta{ name: "viewport", content: "width=480, initial-scale=1" }/
+    %title #{Station.site_name} · Station
+    %link{ rel: "icon", type: "image/png", href: station_brand_path('favicon') }
+    = stylesheet_link_tag 'colors'
+    = stylesheet_link_tag 'station'
+    = vite_client_tag
+    = vite_javascript_tag 'application'
+    -# The device view: JUST the 480×800 screen, full colour, no frame and no e-ink
+    -# filter. This is what the shooter captures and the panel dithers to Spectra-6 —
+    -# a fake frame or a pre-applied filter would fight the real panel. The desktop
+    -# emulation lives at /station/preview.
+    :css
+      * { box-sizing: border-box; }
+      html, body { margin: 0; background: var(--paper); }
+  %body{ data: { controller: "refresh", "refresh-interval-value": 60000 } }
+    = render 'station_screen'

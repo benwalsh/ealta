@@ -1,0 +1,24 @@
+!!!
+%html{ lang: ui_lang, "data-lang": ui_lang }
+  %head
+    %title= [Station.site_name, Station.place&.dig(:en)].compact.join(' — ')
+    %meta{ name: "viewport", content: "width=device-width,initial-scale=1,viewport-fit=cover" }
+    %meta{ name: "application-name", content: Station.site_name }
+    = csrf_meta_tags
+    = csp_meta_tag
+    -# The favicon is the station's, streamed from its profile (StationAssetsController),
+    -# not an app/assets file. type must be image/png — Chrome silently drops a PNG
+    -# served as the image/x-icon that favicon_link_tag would default to.
+    %link{ rel: "icon", type: "image/png", href: station_brand_path('favicon') }
+    %link{ rel: "apple-touch-icon", type: "image/png", href: station_brand_path('favicon') }
+    -# colors/pipeline/application/editorial carry the design system + the classnames
+    -# the React components reuse; served by Propshaft. The React SPA is the `app`
+    -# Vite entrypoint; it renders the chrome + Birds/Stats/Directory tabs.
+    = stylesheet_link_tag "colors", "panel", "application", "editorial"
+    = vite_client_tag
+    = vite_react_refresh_tag
+    -# The app entry also bundles the Tabler icon-font CSS; link it in production.
+    = vite_stylesheet_tag "app.tsx"
+    = vite_javascript_tag "app.tsx"
+  %body.ed
+    = yield

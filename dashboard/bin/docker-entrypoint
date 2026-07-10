@@ -1,0 +1,20 @@
+#!/bin/bash -e
+
+# When booting the web server on the cloud mirror, prepare the DB (create schema
+# on first boot, then run any pending migrations). db:prepare is idempotent and
+# App Runner keeps a single warm instance, so there's no migration race — and
+# RDS is private, so this is the only place migrations can run.
+if [ "${1}" = "bin/rails" ] && [ "${2}" = "server" ]; then
+  # Wait for the database — RDS may not answer instantly on a cold start or after
+  # a failover, and we'd rather wait than crash-loop.
+  for i in $(seq 1 30); do
+    if ./bin/rails runner "ActiveRecord::Base.connection.execute('SELECT 1')" >/dev/null 2>&1; then
+      break
+    fi
+    echo "waiting for database... (${i})"
+    sleep 2
+  done
+  ./bin/rails db:prepare
+fi
+
+exec "${@}"

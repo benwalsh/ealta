@@ -1,0 +1,45 @@
+-# The station screen — the exact pixels the Inky shows. Shared by /station (the clean
+-# device view the shooter captures) and /station/preview (the framed e-ink emulation),
+-# so the desktop preview can never drift from what the panel actually renders. It reads
+-# like a daily printed field-guide broadside, not a live dashboard: the plate is frozen
+-# for the day, and only the live line + status stamp move.
+%main.screen.station
+  %header.head
+    %h1.wordmark= Station.site_name
+    - if (here = station_text(Station.place))
+      %p.place= here
+  %hr.rule/
+  %section.collage-area{ "aria-label": "Birds recorded today" }
+    = render partial: 'panel'
+  -# The live line: the plate is frozen, so the day's growth shows only here — the running
+  -# species count, and the single most recent arrival with its time.
+  %p.tally= station_text(en: "#{@species_today} species today", ga: "#{@species_today} speiceas inniu")
+  - if @arrival
+    - name = @arrival[:name].public_send(station_lang) || @arrival[:name].en
+    %p.arrival= "+ #{name} #{station_text(en: 'at', ga: 'ag')} #{@arrival[:at].strftime('%H:%M')}"
+  - else
+    %p.arrival.quiet= station_text(en: 'listening…', ga: 'ag éisteacht…')
+  -# The ambient almanac — the same weather / moon / sun / tide readings the home page's
+  -# row shows, as muted line-icon + label pairs (never emoji). A subset of the site's
+  -# content, in the panel's chosen language.
+  %footer.foot.today-almanac
+    - Array(@almanac).each do |item|
+      %span
+        %i.ti{ class: item[:icon], "aria-hidden": "true" }
+        = station_text(item)
+  -# Status marker + an honest "updated" stamp — a periodically-printed bulletin, not a
+  -# live clock. A ring while the recorder is listening; a caret when it's gone quiet.
+  %p.status
+    - if @status[:listening]
+      %span.mark.on ○
+      %span= station_text(en: 'listening', ga: 'ag éisteacht')
+      %span.sep ·
+      - stamp = @updated_at.strftime('%H:%M')
+      %span= station_text(en: "updated #{stamp}", ga: "nuashonraithe #{stamp}")
+    - else
+      %span.mark.off △
+      - since = @status[:since] && @status[:since].strftime('%H:%M')
+      %span= station_text(en: "recorder quiet#{" since #{since}" if since}", ga: "ciúin#{" ó #{since}" if since}")
+  %p.wayfind
+    %span.wayfind-hint= station_text(en: 'see more at', ga: 'tuilleadh ag')
+    %span.wayfind-url= Station.url

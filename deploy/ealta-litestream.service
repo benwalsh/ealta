@@ -1,0 +1,21 @@
+[Unit]
+# Continuous offsite backup: replicate the shared bird DB to S3/B2 so an SD-card
+# death doesn't lose the station's detection history. Needs the DB to exist, so
+# it's ordered after the web app (whose db:prepare creates it). Only enabled when
+# the LITESTREAM_* keys are set in .env (provision.sh skips it otherwise).
+Description=Litestream replication of the bird DB to S3/B2
+After=ealta-web.service
+Requires=ealta-web.service
+# Keep the offsite backup trying forever — losing replication silently is the one thing
+# that would turn a later SD-card death into real data loss.
+StartLimitIntervalSec=0
+
+[Service]
+User=pi
+EnvironmentFile=/home/pi/ealta/.env
+ExecStart=/usr/bin/litestream replicate -config /home/pi/ealta/deploy/litestream.yml
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

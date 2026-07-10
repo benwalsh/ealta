@@ -1,0 +1,17 @@
+# Sample allowlist for the suite — the Irish host set + dúchas adapter, so SourceFetcher/
+# Duchas specs exercise the real allowlist + adapter behaviour against a fixture profile.
+trusted_hosts:
+  - birdwatchireland.ie
+  - www.birdwatchireland.ie
+  - biodiversityireland.ie
+  - maps.biodiversityireland.ie
+  - irbc.ie
+  - iwt.ie
+  - duchas.ie
+  - www.duchas.ie
+  - celt.ucc.ie
+  - irishheritagenews.ie
+  - en.wikipedia.org
+affiliate_pattern: '\Abirdwatch[a-z]+\.(?:ie|org)\z'
+adapters: [duchas]
+prefer_note: "Prefer dúchas.ie for folklore; BirdWatch Ireland for regional notes."

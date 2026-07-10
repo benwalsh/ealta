@@ -1,0 +1,32 @@
+#
+# ARM Debian validation of the macOS->Pi gap — run BEFORE touching the Pi to
+# catch what macOS can't: dependency installs on ARM Debian, Rails native-gem
+# resolution/builds, and Irish-fada rendering under a Debian locale. Build + run
+# with `make armcheck`. Mirrors Raspberry Pi OS Lite (Bookworm, arm64) and runs
+# the software path of deploy/provision.sh under EALTA_CONTAINER=1.
+FROM arm64v8/debian:bookworm
+
+# Pi-like non-root user with passwordless sudo (provision.sh shells out to sudo),
+# and a generated C.UTF-8 locale (the Irish-fada seam).
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends sudo ca-certificates locales \
+ && locale-gen C.UTF-8 || true \
+ && useradd -m -s /bin/bash ealta \
+ && printf 'ealta ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/ealta \
+ && rm -rf /var/lib/apt/lists/*
+
+USER ealta
+ENV EALTA_CONTAINER=1 \
+    EALTA_REPO=/home/ealta/ealta \
+    LANG=C.UTF-8 LC_ALL=C.UTF-8
+WORKDIR /home/ealta/ealta
+
+COPY --chown=ealta:ealta . .
+
+# Throwaway .env so provision.sh's production boot has its required vars; the DB
+# is a scratch file inside the container.
+RUN printf 'SECRET_KEY_BASE=armcheck-dummy-not-a-real-secret\nBIRD_DB=/home/ealta/armcheck.sqlite3\nBIRD_LAT=0.0\nBIRD_LON=0.0\nBIRD_MIN_CONF=0.6\nBIRD_MIC=test\n' > .env
+
+# apt deps -> uv sync -> bundle (gems) -> bun -> db:prepare -> ealta:doctor.
+# Prints "all seams good ✓" and exits 0 if the platform is fine.
+CMD ["bash", "deploy/provision.sh"]

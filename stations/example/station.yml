@@ -1,0 +1,41 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Reference station profile (stations/example)
+#
+# This is the profile ealta falls back to, file by file, when your own profile
+# doesn't override a file. It boots the app with NO personal data: a nameless
+# station, English only, no external lore sources.
+#
+# To make your own station:  make new-station NAME=yourplace
+# then edit the copy under stations/yourplace/ and point STATION_PROFILE at it.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# The station's place. Leave blank to let the app reverse-geocode from BIRD_LAT/LON
+# (set in .env), or set it explicitly here. `ga` is an optional second-language
+# rendering; it falls back to `en`.
+place:
+  en: ""
+  ga: ""
+
+# Where a visitor goes to see more — shown as quiet wayfinding on the panel.
+url: ""
+
+# What this station calls itself — the masthead wordmark, page titles, emails.
+site_name: "Ealta"
+
+# The station's mark and favicon, as paths inside this profile. Both are optional:
+# a station with no mark renders the wordmark alone. The engine serves them from here
+# (they are not app/assets files), so an overlay ships its own and inherits nothing.
+brand:
+  mark: brand/mark.png
+  favicon: brand/favicon.png
+  mark_alt:
+    en: "The ealta mark"
+
+# The panel speaks ONE language at a time (an admin picks which at /admin). List the
+# languages this station supports, most-preferred first; the first is the default.
+# A single-language station skips all translation. Irish-first example: [ga, en].
+languages: [en]
+default_language: en
+
+# Admin identities (comma-friendly list). Also settable via ADMIN_EMAILS in .env.
+admin_emails: []

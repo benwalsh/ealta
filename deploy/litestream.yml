@@ -1,0 +1,12 @@
+# Litestream — continuous offsite backup of the shared bird DB to S3/B2, so an
+# SD-card death at the station doesn't lose the detection history. WAL is already
+# on (dashboard/config/database.yml). Values come from .env via the systemd unit's
+# EnvironmentFile; ${VAR} is expanded by Litestream at start.
+dbs:
+  - path: ${BIRD_DB}
+    replicas:
+      - type: s3
+        bucket: ${LITESTREAM_BUCKET}
+        path: birds.db
+        region: ${LITESTREAM_REGION}
+        # endpoint: ${LITESTREAM_ENDPOINT}   # set for Backblaze B2 / non-AWS S3

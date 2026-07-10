@@ -1,0 +1,19 @@
+[Unit]
+# Regenerates storage/today_summary.json (the home page's daily "today" bullets)
+# by narrating the DailyFacts object with Amazon Nova Lite via Bedrock. Best-effort
+# and offline-tolerant: if Bedrock is unreachable the last good summary is left in
+# place, and with no cache at all it writes the deterministic template. Needs AWS
+# creds + BEDROCK_* in the EnvironmentFile; set SUMMARY_LLM_DISABLED=1 to stay on
+# the template. Paired with the .timer.
+Description=Refresh the station "today" summary (Bedrock Nova Lite)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=pi
+WorkingDirectory=/home/pi/ealta/dashboard
+EnvironmentFile=/home/pi/ealta/.env
+Environment=RAILS_ENV=production
+Environment=LANG=C.UTF-8 LC_ALL=C.UTF-8
+ExecStart=/usr/bin/env bash -lc 'cd /home/pi/ealta/dashboard && bin/rails ealta:summary_refresh'

@@ -1,0 +1,10 @@
+# Made-up curated days for the test suite — NOT real observances. Assertions about real
+# Irish féilire content live in a station overlay's own specs.
+"07-07":
+  title: { en: "Founders' Day", ga: "Lá na mBunaitheoirí" }
+  kind: saint
+  gloss: { en: "a curated day, for the sample profile", ga: "lá saothraithe, don phróifíl shamplach" }
+"11-01":
+  title: { en: "Turn of the Year", ga: "Casadh na Bliana" }
+  kind: quarter_day
+  gloss: { en: "a cross-quarter day", ga: "lá idir dhá ráithe" }

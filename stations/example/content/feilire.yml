@@ -1,0 +1,12 @@
+# The day's local character — a curated calendar of notable days for your place, keyed by
+# MM-DD. Facts only (dates, names): the model never guesses these. A day with no entry falls
+# back to its season (see the `seasons` block in content/almanac.yml). Deliberately selective —
+# only days that carry genuine local weight, not a full liturgical or civic calendar.
+#
+# This example ships empty. Add days that matter where your station listens. Format:
+#
+# "03-20":
+#   title: { en: "Spring equinox", ga: "" }
+#   kind: quarter_day
+#   gloss: { en: "the day the light draws level", ga: "" }
+{}

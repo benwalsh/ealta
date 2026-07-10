@@ -1,0 +1,8 @@
+place:
+  en: "Sampleton"
+  ga: "Baile Samplach"
+url: "example.test"
+site_name: "Éist"
+languages: [ga, en]
+default_language: ga
+admin_emails: []

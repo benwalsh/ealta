@@ -1,0 +1,61 @@
+/* ============================================================================
+   THE colour constants — the single source of truth for every colour in the app.
+   Nothing is hardcoded anywhere else: all CSS rules and every view reference
+   these variables. To reskin, change them here and only here. Neutral by
+   design — no warm/beige cast; the birds are the only colour.
+   Loaded first, before panel.css/application.css and in the standalone views.
+   ============================================================================ */
+:root {
+  color-scheme: light;
+  /* The publication's two typefaces — the single source of truth for type.
+     --serif (EB Garamond, the Sabon role): names, mastheads, prose.
+     --mono  (IBM Plex Mono): every number + small label. Self-hosted via the Vite
+     app entry (@fontsource); the stacks fall back to system serif/mono. */
+  --serif: "EB Garamond", "Iowan Old Style", Georgia, serif;
+  --mono:  "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --paper:    #ffffff;   /* pure white page/panel ground */
+  --paper-2:  #f2f2f3;   /* neutral recessed track */
+  --paper-3:  #e7e7ea;   /* neutral placeholder fill */
+  --ink:      #17171a;   /* neutral near-black text/marks */
+  --ink-2:    #3d3d42;   /* neutral dark grey (secondary) */
+  --ink-soft: #8b8b91;   /* neutral muted grey (labels) */
+  --accent:   #3d3d42;   /* neutral dark grey */
+  --accent-2: #17171a;   /* near-black */
+  --hairline: rgba(0,0,0,0.14);   /* faint divider lines + chart gridlines */
+  --rule:     #e4e4e7;            /* solid light hairline */
+  --pill:     #ffffff;            /* active-toggle sliding pill */
+  --frame:      #201f1d;          /* neutral dark surround (panel/emulator) */
+  --frame-face: #2c2c30;          /* moulding face of the station/kiosk frame */
+  --frame-label:#8a8a90;          /* spec caption sitting on the dark frame */
+  /* Semantic accents — status + BoCCI conservation (same in both themes) */
+  --red:      #c0392b;   /* Red list / errors */
+  --amber:    #d99a1c;   /* Amber list / warnings */
+  --green:    #4a8c5a;   /* Green list / ok */
+  /* Depth shadow recipes — replace flat 1px borders */
+  --edge:    inset 0 0 0 1px rgba(255,255,255,0.55), 0 0 0 1px rgba(0,0,0,0.04);
+  --edge-lg: inset 0 0 0 1px rgba(255,255,255,0.6), 0 0 0 1px rgba(0,0,0,0.06), 0 8px 28px rgba(0,0,0,0.06);
+  --recess:  inset 0 1px 2px rgba(0,0,0,0.06), inset 0 0 0 1px rgba(0,0,0,0.04);
+  --raised:  inset 0 0 0 1px rgba(255,255,255,0.8), 0 0 0 1px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.07);
+}
+
+/* Charcoal dark theme — set via data-theme="dark" on <html>. Variable-driven, so
+   flipping ink<->paper inverts the whole UI cleanly. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper:    #17181c;   /* charcoal page bg */
+  --paper-2:  #212226;   /* recessed track */
+  --paper-3:  #2c2d33;   /* placeholder fill */
+  --ink:      #ededee;   /* neutral off-white text/marks */
+  --ink-2:    #b4b4b8;   /* secondary text */
+  --ink-soft: #828287;   /* muted text */
+  --accent:   #d6d6d8;   /* light neutral — pills read light-on-dark */
+  --accent-2: #ededee;
+  --hairline: rgba(237,237,238,0.20);
+  --rule:     #34353a;
+  --pill:     #3a3e48;
+  --frame:    #0e0e10;
+  --edge:    inset 0 0 0 1px rgba(255,255,255,0.05), 0 0 0 1px rgba(0,0,0,0.4);
+  --edge-lg: inset 0 0 0 1px rgba(255,255,255,0.06), 0 0 0 1px rgba(0,0,0,0.5), 0 10px 30px rgba(0,0,0,0.5);
+  --recess:  inset 0 1px 2px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.04);
+  --raised:  inset 0 0 0 1px rgba(255,255,255,0.07), 0 0 0 1px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.5);
+}

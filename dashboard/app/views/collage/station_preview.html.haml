@@ -1,0 +1,91 @@
+!!!
+%html{ lang: "en" }
+  %head
+    %meta{ charset: "utf-8" }/
+    %meta{ name: "viewport", content: "width=device-width, initial-scale=1" }/
+    %title #{Station.site_name} · Station preview
+    %link{ rel: "icon", type: "image/png", href: station_brand_path('favicon') }
+    = stylesheet_link_tag 'colors'
+    = stylesheet_link_tag 'station'
+    = vite_client_tag
+    = vite_javascript_tag 'application'
+    -# The DESKTOP emulation: the exact /station screen shown INSIDE a mock-up of the
+    -# real hardware — a Pimoroni Inky Impression 7.3" (black module, four A–D buttons)
+    -# mounted portrait — and run through a CSS/SVG approximation of Spectra-6 (muted,
+    -# posterised, dithered). None of this touches the device pixels served at /station.
+    :css
+      * { box-sizing: border-box; }
+      html, body { margin: 0; min-height: 100%; }
+      body {
+        min-height: 100vh; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 18px;
+        padding: 5vmin; background: #14140f;
+        font-family: "Baskerville", "Hoefler Text", "EB Garamond", Georgia, serif;
+      }
+
+      /* The Inky Impression module: a matte-black PCB, portrait, buttons down one edge. */
+      .device {
+        display: flex; align-items: stretch; gap: 14px;
+        padding: 16px 16px 16px 14px; border-radius: 10px;
+        background:
+          linear-gradient(155deg, #26261f 0%, #17170f 60%, #101009 100%);
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.05),
+          inset 0 0 0 1px rgba(0,0,0,0.6),
+          0 30px 70px rgba(0,0,0,0.7);
+      }
+      /* The four tactile buttons (A–D) down the left short edge, as on the real board. */
+      .device-buttons {
+        display: flex; flex-direction: column; justify-content: space-between;
+        align-items: center; padding: 8px 0;
+      }
+      .device-buttons b {
+        width: 16px; height: 16px; border-radius: 999px;
+        background: radial-gradient(circle at 35% 30%, #3a3a34, #0c0c08);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 1px 2px rgba(0,0,0,0.8);
+        font: 8px ui-monospace, Menlo, monospace; color: #6f6f66;
+        display: flex; align-items: center; justify-content: center; text-indent: 9px;
+        white-space: nowrap;
+      }
+      /* A hair of white glass edge, then the panel itself. */
+      .glass { padding: 3px; border-radius: 3px; background: #d8d8d2; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.35); }
+      .inky {
+        position: relative; width: 480px; height: 800px; overflow: hidden;
+        background: var(--paper);
+        filter: url(#eink) contrast(1.06) brightness(0.92);
+      }
+      /* Fine dither grain (fractal-noise tile) — the texture a monitor otherwise lacks. */
+      .inky::after {
+        content: ""; position: absolute; inset: 0; pointer-events: none;
+        opacity: 0.12; mix-blend-mode: multiply; background-size: 160px 160px;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+      }
+      /* A faint diagonal sheen over the glass, so it reads as a panel, not a print. */
+      .inky::before {
+        content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+        background: linear-gradient(120deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0) 32%);
+      }
+      .spec {
+        font: 10px ui-monospace, Menlo, monospace; letter-spacing: 0.14em;
+        text-transform: uppercase; color: #6f6f66;
+      }
+  %body{ data: { controller: "refresh", "refresh-interval-value": 60000 } }
+    -# Desaturate toward Spectra-6's un-vivid gamut, then band each channel to a few
+    -# discrete levels (whites lift to warm-grey, blacks soften) — posterised e-ink colour.
+    %svg{ width: 0, height: 0, style: 'position:absolute' }
+      %filter#eink
+        %feColorMatrix{ type: 'saturate', values: '0.58' }
+        %feComponentTransfer
+          %feFuncR{ type: 'discrete', tableValues: '0.09 0.42 0.70 0.92' }
+          %feFuncG{ type: 'discrete', tableValues: '0.09 0.42 0.70 0.92' }
+          %feFuncB{ type: 'discrete', tableValues: '0.09 0.42 0.70 0.92' }
+    .device
+      %nav.device-buttons{ "aria-hidden": "true" }
+        %b A
+        %b B
+        %b C
+        %b D
+      .glass
+        .inky
+          = render 'station_screen'
+    %span.spec Pimoroni Inky Impression 7.3″ · E Ink Spectra 6 · 800×480

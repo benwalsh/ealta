@@ -1,0 +1,16 @@
+# Solid Queue worker/dispatcher config. Only the cloud actually starts a supervisor
+# (via the Puma plugin), so this really only matters there; a lean single worker is
+# ample for one station's once-a-day sweep. The scheduler runs the recurring tasks
+# (config/recurring.yml). Modest polling — nothing here is latency-sensitive.
+default: &default
+  dispatchers:
+    - polling_interval: 1
+      batch_size: 500
+  workers:
+    - queues: "*"
+      threads: 2
+      processes: 1
+      polling_interval: 5
+
+cloud:
+  <<: *default

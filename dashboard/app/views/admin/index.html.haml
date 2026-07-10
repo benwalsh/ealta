@@ -1,0 +1,96 @@
+- content_for(:title) { "Admin · #{Station.site_name}" }
+
+.acct.adm
+  %header.acct-top
+    %a.acct-home{ href: "/" } ← #{Station.site_name}
+    %h1.acct-h1 Admin
+
+  %section.acct-sec
+    %h2.acct-h2 Station
+    %p.adm-lead The wall speaks one language, consistently — pick which. Guests are pointed to #{Station.url}.
+    = form_with url: admin_station_path, method: :patch, class: "acct-cadence", data: { turbo: false } do
+      - Station.languages.each do |code|
+        = button_tag Station.language_name(code), type: :submit, name: "station[language]", value: code,
+          class: "acct-seg#{' is-on' if @station_language == code}", "aria-pressed": (@station_language == code)
+
+  - l = @health[:listening]
+  %section.acct-sec
+    %h2.acct-h2 Listening
+    %p.adm-lead
+      %span.adm-dot{ class: l[:freshness] }
+      - if l[:last_alive_at]
+        %span Mic alive — last tick #{time_ago_in_words(l[:last_alive_at])} ago
+        %span.adm-abs= l[:last_alive_at].strftime("%-d %b, %H:%M")
+      - elsif l[:last_heard_at]
+        %span Last heard #{time_ago_in_words(l[:last_heard_at])} ago
+        %span.adm-abs no heartbeat yet
+      - else
+        %span Nothing yet.
+    %p.adm-note
+      - if l[:last_heard_at]
+        Last bird #{time_ago_in_words(l[:last_heard_at])} ago#{l[:last_species] ? " — #{l[:last_species].en}" : ''}.
+      A heartbeat ticks every listening cycle, even quiet ones — so the dot dims only when the mic → BirdNET loop actually stalls, not on a quiet spell. A quiet window is a true zero; a missing tick is missing data.
+    .adm-stats
+      .adm-stat
+        %span.adm-fig= number_with_delimiter(l[:detections_today])
+        %span.adm-lbl Detections today
+      .adm-stat
+        %span.adm-fig= number_with_delimiter(l[:detections_all_time])
+        %span.adm-lbl All-time
+      .adm-stat
+        %span.adm-fig= l[:species_today]
+        %span.adm-lbl Species today
+      .adm-stat
+        %span.adm-fig= l[:species_all_time]
+        %span.adm-lbl Species all-time
+
+  - a = @health[:alerts]
+  %section.acct-sec
+    %h2.acct-h2 Alerts
+    %ul.acct-rules
+      %li.acct-rule
+        %span.acct-rule-label Delivery
+        %span= a[:configured] ? "email · #{a[:from]}" : "not configured"
+      %li.acct-rule
+        %span.acct-rule-label Following / standing rules
+        %span= "#{a[:following]} / #{a[:standing_rules]}"
+      %li.acct-rule
+        %span.acct-rule-label Events (pending)
+        %span{ class: (a[:events_pending].positive? ? "adm-warn" : nil) }= "#{a[:events_total]} (#{a[:events_pending]})"
+      - if a[:last_event]
+        %li.acct-rule
+          %span.acct-rule-label Last event
+          %span= "#{a[:last_event][:type]} · #{a[:last_event][:name]} · #{time_ago_in_words(a[:last_event][:at])} ago"
+
+  - s = @health[:system]
+  %section.acct-sec
+    %h2.acct-h2 System
+    %ul.acct-rules
+      %li.acct-rule
+        %span.acct-rule-label Environment
+        %span= "#{s[:env]} · #{s[:adapter]}"
+      %li.acct-rule
+        %span.acct-rule-label Site
+        %span= s[:site_url] || "—"
+      %li.acct-rule
+        %span.acct-rule-label LLM region
+        %span= s[:llm_region] || "—"
+      %li.acct-rule
+        %span.acct-rule-label Offsite backup
+        %span= s[:backup][:configured] ? "Litestream · #{s[:backup][:bucket]}" : "not configured"
+
+  %section.acct-sec
+    %h2.acct-h2 Maintenance
+    %p.adm-lead Restart the detection listener if it wedges. Off the Pi this does nothing.
+    = button_to "Restart listener", admin_restart_listener_path, method: :post, class: "acct-seg", data: { turbo: false }
+
+    %p.adm-lead.adm-mt Relabel a mis-identified detection to the correct species.
+    = form_with url: admin_correct_detection_path, method: :patch, class: "acct-cadence", data: { turbo: false } do
+      = text_field_tag "detection[id]", nil, placeholder: "detection id", "aria-label": "detection id"
+      = text_field_tag "detection[sci_name]", nil, placeholder: "scientific name", "aria-label": "scientific name"
+      = submit_tag "Relabel", class: "acct-seg"
+
+    %p.adm-lead.adm-mt Clear the detection history (keeps enrichment caches). Type DELETE to confirm.
+    = form_with url: admin_clear_data_path, method: :delete, class: "acct-cadence", data: { turbo: false } do
+      = text_field_tag :confirm, nil, placeholder: "DELETE", "aria-label": "type DELETE to confirm"
+      = submit_tag "Clear data", class: "acct-seg adm-danger"

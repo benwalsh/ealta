@@ -1,0 +1,168 @@
+!!!
+%html{ lang: "en" }
+  %head
+    %meta{ charset: "utf-8" }/
+    %meta{ name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" }/
+    %title #{Station.site_name} · Inky 7.3″ emulator
+    :css
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; }
+      body {
+        min-height: 100%; display: flex; align-items: center; justify-content: center;
+        padding: 4vmin;
+        background: radial-gradient(130% 130% at 50% 18%, #26262a, #0e0e11 72%);
+        font-family: ui-serif, "Iowan Old Style", Georgia, serif;
+      }
+      .stage { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+      /* Shadow-box timber frame: dark warm wood, faint grain, deep recess. */
+      .frame {
+        padding: 30px; border-radius: 12px;
+        background:
+          repeating-linear-gradient(93deg, rgba(255,255,255,0.018) 0 2px, rgba(0,0,0,0.05) 2px 6px),
+          linear-gradient(152deg, #2f2f33, #1c1c20 55%, #0e0e11);
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,0.07),
+          inset 0 -3px 8px rgba(0,0,0,0.6),
+          0 24px 60px rgba(0,0,0,0.65);
+      }
+      /* A slim cream mount around the glass. */
+      .mat {
+        padding: 12px; border-radius: 3px;
+        background: linear-gradient(#f2f2f3, #e7e7ea);
+        box-shadow: inset 0 2px 9px rgba(0,0,0,0.4);
+      }
+      #panel {
+        display: block; width: min(800px, 84vw); height: auto; aspect-ratio: 800 / 480;
+        border-radius: 1px; box-shadow: 0 0 0 1px rgba(0,0,0,0.3);
+      }
+      .plate { text-align: center; color: #b4b4b8; }
+      .plate .name { display: block; font-size: 15px; letter-spacing: 0.05em; }
+      .plate .spec {
+        display: block; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.14em;
+        font: 10px ui-monospace, Menlo, monospace; color: #8b8b91;
+      }
+      .status { margin: 0; font: 10px ui-monospace, Menlo, monospace; color: #6a6a70; letter-spacing: 0.06em; }
+  %body
+    .stage
+      .frame
+        .mat
+          %canvas#panel{ width: "800", height: "480" }
+      .plate
+        %span.name Tigh Bhreadáin
+        %span.spec Inky Impression 7.3″ · Spectra 6 · 800×480
+      %p#status.status rendering…
+    :javascript
+      // The panel's six Spectra-6 inks — identical to shooter/shoot.py's SPECTRA6,
+      // so this preview matches what the real glass renders.
+      const SPECTRA6 = [[236,234,223],[26,26,28],[165,60,56],[198,176,74],[49,71,130],[58,110,72]];
+      const W = 800, H = 480;
+      const canvas = document.getElementById("panel");
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      const statusEl = document.getElementById("status");
+
+      function loadImage(src) {
+        return new Promise((res) => {
+          const img = new Image();
+          img.onload = () => res(img);
+          img.onerror = () => res(null);
+          img.src = src;
+        });
+      }
+
+      async function fetchPanelSvg() {
+        const html = await (await fetch("/panel", { cache: "no-store" })).text();
+        return new DOMParser().parseFromString(html, "text/html").querySelector("svg.collage");
+      }
+
+      // Composite the bare panel SVG onto the canvas. Bird PNGs are same-origin,
+      // so drawing them keeps the canvas untainted (getImageData stays legal).
+      async function compose(svg) {
+        const bg = svg.querySelector("rect");
+        // The rect fill is a CSS var() the canvas can't parse; the panel ground is
+        // always the paper, so fall back to white when it isn't a literal colour.
+        const bgFill = bg && bg.getAttribute("fill");
+        ctx.fillStyle = (bgFill && CSS.supports("color", bgFill)) ? bgFill : "#ffffff";
+        ctx.fillRect(0, 0, W, H);
+        const els = [...svg.querySelectorAll("image")];
+        const imgs = await Promise.all(els.map((el) => loadImage(el.getAttribute("href") || el.getAttribute("xlink:href"))));
+        els.forEach((el, i) => {
+          const img = imgs[i];
+          if (!img) return;
+          const x = +el.getAttribute("x"), y = +el.getAttribute("y");
+          const w = +el.getAttribute("width"), h = +el.getAttribute("height");
+          // preserveAspectRatio="xMidYMid meet": contain-fit, centred.
+          const s = Math.min(w / img.naturalWidth, h / img.naturalHeight);
+          const dw = img.naturalWidth * s, dh = img.naturalHeight * s;
+          const dx = x + (w - dw) / 2, dy = y + (h - dh) / 2;
+          if (el.getAttribute("data-flip")) {
+            // Mirror about the bird's centre, matching the SVG's flip transform.
+            const cx = x + w / 2;
+            ctx.save();
+            ctx.translate(cx * 2, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(img, dx, dy, dw, dh);
+            ctx.restore();
+          } else {
+            ctx.drawImage(img, dx, dy, dw, dh);
+          }
+        });
+        const t = svg.querySelector("text"); // the "ag éisteacht…" empty state
+        if (t) {
+          const tf = t.getAttribute("fill");
+          ctx.fillStyle = (tf && CSS.supports("color", tf)) ? tf : "#8b8b91";
+          ctx.font = "italic 30px Baskerville, 'Hoefler Text', Georgia, serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(t.textContent.trim(), +t.getAttribute("x"), +t.getAttribute("y"));
+        }
+      }
+
+      function nearest(r, g, b) {
+        let bi = 0, bd = Infinity;
+        for (let i = 0; i < 6; i++) {
+          const p = SPECTRA6[i];
+          const d = (r - p[0]) ** 2 + (g - p[1]) ** 2 + (b - p[2]) ** 2;
+          if (d < bd) { bd = d; bi = i; }
+        }
+        return SPECTRA6[bi];
+      }
+
+      // Floyd–Steinberg error diffusion in a float buffer (matches PIL's dither).
+      function dither() {
+        const im = ctx.getImageData(0, 0, W, H), d = im.data;
+        const buf = new Float32Array(W * H * 3);
+        for (let p = 0, q = 0; p < d.length; p += 4, q += 3) { buf[q] = d[p]; buf[q + 1] = d[p + 1]; buf[q + 2] = d[p + 2]; }
+        for (let y = 0; y < H; y++) {
+          for (let x = 0; x < W; x++) {
+            const q = (y * W + x) * 3;
+            const r = buf[q], g = buf[q + 1], b = buf[q + 2];
+            const nr = nearest(r, g, b);
+            const er = r - nr[0], eg = g - nr[1], eb = b - nr[2];
+            const spread = (xx, yy, f) => {
+              if (xx < 0 || xx >= W || yy < 0 || yy >= H) return;
+              const j = (yy * W + xx) * 3;
+              buf[j] += er * f; buf[j + 1] += eg * f; buf[j + 2] += eb * f;
+            };
+            spread(x + 1, y, 7 / 16); spread(x - 1, y + 1, 3 / 16); spread(x, y + 1, 5 / 16); spread(x + 1, y + 1, 1 / 16);
+            const p = (y * W + x) * 4;
+            d[p] = nr[0]; d[p + 1] = nr[1]; d[p + 2] = nr[2]; d[p + 3] = 255;
+          }
+        }
+        ctx.putImageData(im, 0, 0);
+      }
+
+      async function render() {
+        try {
+          const svg = await fetchPanelSvg();
+          if (!svg) { statusEl.textContent = "no panel to render"; return; }
+          await document.fonts.ready;
+          await compose(svg);
+          dither();
+          statusEl.textContent = "Spectra-6 · updated " + new Date().toLocaleTimeString();
+        } catch (e) {
+          statusEl.textContent = "render error: " + e.message;
+        }
+      }
+
+      render();
+      setInterval(render, 15000); // the wall refreshes on change; here, a lazy tick

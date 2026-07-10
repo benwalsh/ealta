@@ -1,0 +1,11 @@
+-# A single checkbox: ticked = the on-value (a daily digest, or immediate for breaking),
+-# unticked = off. The hidden "off" precedes the checkbox so an unticked box still posts a
+-# value; the box, later in the DOM, wins when ticked. Saves itself on change (autosubmit).
+- on_value = local_assigns.fetch(:on_value, "digest")
+- on = current.present? && current != "off"
+= form_with url: subscription_cadence_path, method: :post, class: "acct-cadence", data: { turbo: false, controller: "autosubmit" } do
+  = hidden_field_tag :alert_type, alert_type
+  = hidden_field_tag :cadence, "off"
+  %label.acct-check
+    = check_box_tag :cadence, on_value, on, class: "acct-check-input", data: { action: "change->autosubmit#submit" }
+    %span.acct-check-box{ "aria-hidden": "true" }

@@ -1,0 +1,44 @@
+# SQLite, shared between two runtimes: the Python listener writes the
+# `detections` table, this app reads them and owns `species_infos`. WAL mode +
+# busy_timeout let both touch the file concurrently without blocking.
+default: &default
+  adapter: sqlite3
+  max_connections: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  timeout: 5000
+  # journal_mode WAL: concurrent reads while the listener writes; NORMAL sync is
+  # safe under WAL and gentler on the Pi's SD card.
+  pragmas:
+    journal_mode: WAL
+    synchronous: NORMAL
+
+development:
+  <<: *default
+  database: storage/development.sqlite3
+
+# Warning: The database defined as "test" will be erased and
+# re-generated from your development database when you run "rake".
+test:
+  <<: *default
+  database: storage/test.sqlite3
+
+# One shared file on the Pi. BIRD_DB (an ABSOLUTE path, set in .env) is the
+# single source of truth so the listener and this app point at the same DB —
+# the listener resolves BIRD_DB from the repo root, Rails from dashboard/, so a
+# relative path would diverge. db:prepare creates it; the listener writes into it.
+production:
+  <<: *default
+  database: <%= ENV.fetch("BIRD_DB", "storage/production.sqlite3") %>
+
+# The public cloud mirror (App Runner) runs on RDS MySQL — a separate block, NOT
+# inheriting *default, because it must not carry SQLite's pragmas/timeout. All
+# connection values come from the environment (SSM in AWS). utf8mb4 keeps the
+# Irish fadas intact. See config/environments/cloud.rb.
+cloud:
+  adapter: trilogy
+  encoding: utf8mb4
+  database: <%= ENV.fetch("DB_NAME", "ealta") %>
+  username: <%= ENV["DB_USER"] %>
+  password: <%= ENV["DB_PASSWORD"] %>
+  host: <%= ENV["DB_HOST"] %>
+  port: <%= ENV.fetch("DB_PORT", 3306) %>
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>

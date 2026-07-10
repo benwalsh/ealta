@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- macOS launchd agent: pushes new local detections to the cloud mirror every 5 min,
+     for when a Mac (not the Pi) is the listening station. The Pi uses
+     deploy/ealta-push.timer instead.
+
+     Edit WorkingDirectory below to your checkout, then:
+     Install:   cp deploy/ealta-push.plist ~/Library/LaunchAgents/
+                launchctl load -w ~/Library/LaunchAgents/ealta-push.plist
+     Uninstall: launchctl unload -w ~/Library/LaunchAgents/ealta-push.plist
+     Logs:      /tmp/ealta-push.log -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>dev.ealta.push</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-lc</string>
+    <string>cd /path/to/ealta &amp;&amp; set -a &amp;&amp; source .env &amp;&amp; set +a &amp;&amp; uv run python birdnet/push.py</string>
+  </array>
+  <key>StartInterval</key>
+  <integer>300</integer>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/tmp/ealta-push.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/ealta-push.log</string>
+</dict>
+</plist>

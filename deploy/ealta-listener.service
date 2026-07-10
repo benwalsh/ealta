@@ -1,0 +1,23 @@
+[Unit]
+# The BirdNET listener: reads the USB mic, writes detections into the shared DB.
+# Needs the user in the `audio` group for mic access. BIRD_* config (the
+# station's coords, mic name, confidence, BIRD_DB) comes from .env.
+# Ordered after the web app so its db:prepare has created the DB + tables first.
+Description=ealta BirdNET microphone listener
+After=sound.target ealta-web.service
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/ealta
+EnvironmentFile=/home/pi/ealta/.env
+Environment=LANG=C.UTF-8 LC_ALL=C.UTF-8
+ExecStart=/usr/bin/env bash -lc 'cd /home/pi/ealta && exec uv run python birdnet/listen.py listen'
+# always (not on-failure): an unattended station box should come back from any
+# exit except a deliberate `systemctl stop` (systemd never fights that). The 10s
+# spacing keeps a genuine crash-loop from tripping systemd's start-limit.
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

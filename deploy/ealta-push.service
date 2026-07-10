@@ -1,0 +1,18 @@
+[Unit]
+# The cold path: pushes new detections up to the cloud mirror
+# so the public site + API reflect the wall. Best-effort and offline-tolerant —
+# a failed run just leaves the cursor and retries next tick. No-ops unless
+# CLOUD_INGEST_URL + CLOUD_INGEST_TOKEN are set in .env, so a stand-alone Pi does
+# nothing. Paired with the .timer.
+Description=Push detections to the cloud mirror
+After=network-online.target ealta-web.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=pi
+# Repo root: push.py resolves the shared BIRD_DB and writes .sync_cursor here.
+WorkingDirectory=/home/pi/ealta
+EnvironmentFile=/home/pi/ealta/.env
+Environment=LANG=C.UTF-8 LC_ALL=C.UTF-8
+ExecStart=/usr/bin/env bash -lc 'cd /home/pi/ealta && uv run python birdnet/push.py'

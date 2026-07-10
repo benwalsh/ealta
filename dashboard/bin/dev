@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+
+if gem list --no-installed --exact --silent foreman; then
+  echo "Installing foreman..."
+  gem install foreman
+fi
+
+# Default the Rails server to 4030 (override with PORT=... bin/dev).
+export PORT="${PORT:-4030}"
+
+# Load the repo-root .env (GOOGLE_CLIENT_ID, etc.) into the environment before
+# starting foreman. There's no dotenv gem and foreman runs with --env /dev/null,
+# so without this the web app boots with no secrets. Mirrors the Makefile idiom.
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+if [ -f "$ROOT/.env" ]; then set -a; . "$ROOT/.env"; set +a; fi
+
+exec foreman start -f Procfile.dev --env /dev/null "$@"
