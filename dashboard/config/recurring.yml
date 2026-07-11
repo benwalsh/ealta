@@ -6,3 +6,11 @@ cloud:
   daily_email_sweep:
     class: DailyEmailSweep
     schedule: "every day at 6am"
+  # Weather + tide into storage/almanac.json. On the Pi this is a systemd timer
+  # (deploy/ealta-almanac.timer); the cloud has no systemd, so it runs here. Without it the
+  # cloud almanac row is blank (only the moon, which is pure calc). Best-effort — a failed
+  # fetch keeps the last good cache. The container filesystem is ephemeral, so a fresh task
+  # shows a blank almanac until the first tick (≤30 min after a deploy).
+  almanac_refresh:
+    command: "Almanac.refresh"
+    schedule: "every 30 minutes"
