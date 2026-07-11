@@ -39,11 +39,13 @@ class Sparkline
 
     private
 
-    # Fully covered when we have no coverage signal at all (nil, or no ticks in the
-    # window) — we don't claim "missing" without evidence; that keeps the cloud mirror
-    # and pre-heartbeat data drawing exactly as before.
+    # Fully covered only when we have NO coverage signal at all (nil) — the caller passes nil
+    # when heartbeats aren't tracked (the cloud mirror, pre-heartbeat data), and we don't claim
+    # "missing" without evidence. An explicitly all-false array is RESPECTED: it means the mic
+    # was down for the whole window, so it reads as one "no data" band rather than a resting
+    # line — consistent whichever timeframe happens to land entirely inside the blind spot.
     def normalize_coverage(coverage, count)
-      return Array.new(count, true) if coverage.nil? || coverage.none?
+      return Array.new(count, true) if coverage.nil?
 
       coverage.map { |c| !!c }
     end
