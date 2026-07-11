@@ -7,9 +7,9 @@ class CreateJournalEntries < ActiveRecord::Migration[8.1]
   def change
     create_table :journal_entries do |t|
       t.date :date, null: false
-      t.json :bullets, null: false, default: -> { '(JSON_OBJECT())' } # { en: [...], ga: [...] }
+      t.json :bullets, null: false # { en: [...], ga: [...] } — default {} on the model
       t.string :source # 'llm' | 'facts' | 'template'
-      t.json :sources, null: false, default: -> { '(JSON_ARRAY())' } # [{ host:, url: }]
+      t.json :sources, null: false # [{ host:, url: }] — default [] on the model
       t.timestamps
     end
     add_index :journal_entries, :date, unique: true
