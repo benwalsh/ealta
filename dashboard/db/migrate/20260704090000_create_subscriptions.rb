@@ -5,7 +5,9 @@ class CreateSubscriptions < ActiveRecord::Migration[8.1]
   # users — but the table is harmless on SQLite, so it's testable in dev.
   def change
     create_table :subscriptions do |t|
-      t.references :user, null: false, foreign_key: true
+      # type: :bigint so the FK column matches users.id (bigint) on MySQL — SQLite makes every
+      # integer 64-bit so it's silent there, but MySQL rejects an int→bigint FK (error 3780).
+      t.references :user, null: false, foreign_key: true, type: :bigint
       t.string :alert_type, null: false, default: 'species'
       t.string :sci_name
       t.boolean :active, null: false, default: true
