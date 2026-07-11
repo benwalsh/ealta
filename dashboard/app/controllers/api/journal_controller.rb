@@ -69,7 +69,7 @@ module Api
     def closing_lore(facts)
       items = Array(facts[:items]).sort_by { |i| -i[:importance].to_i }
       items.each do |item|
-        lore = BirdLore.for(item[:sci_name])
+        lore = BirdLore.for(item[:sci_name], date: facts[:date])
         next unless lore
 
         name = BirdName.lookup(item[:sci_name])
