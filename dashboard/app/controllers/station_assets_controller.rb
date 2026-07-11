@@ -26,14 +26,26 @@ class StationAssetsController < ApplicationController
   # it, so it is served rather than statically linked. The route constrains :name to a
   # slug + .png, and we take only its basename, so nothing escapes the art directory.
   # URLs are unchanged (`/birds/<slug>.png?v=<mtime>`); only the source of the bytes is.
+  #
+  # Bytes resolve local-first, then remote: if the profile has the file on disk (dev, and
+  # the Pi after it syncs the art to its SD card) it is streamed; otherwise, when the
+  # station publishes its art to a CDN (ILLUSTRATIONS_BASE_URL — e.g. an S3+CloudFront
+  # bucket), we redirect there. That is how the cloud image stays slim — the 225 MB of art
+  # lives on the CDN, not baked into the image. With no local file and no base URL, it is a
+  # 404 exactly as before.
   def bird
-    dir = StationProfile.illustrations_dir
-    return head :not_found if dir.nil?
+    name = File.basename(params[:name])
+    dir  = StationProfile.illustrations_dir
 
-    path = dir.join(File.basename(params[:name]))
-    return head :not_found unless path.file?
+    if dir && (path = dir.join(name)).file?
+      expires_in 1.week, public: true
+      return send_file path, type: 'image/png', disposition: 'inline'
+    end
 
-    expires_in 1.week, public: true
-    send_file path, type: 'image/png', disposition: 'inline'
+    base = ENV['ILLUSTRATIONS_BASE_URL'].presence
+    return head :not_found if base.nil?
+
+    expires_in 1.day, public: true
+    redirect_to "#{base.chomp('/')}/#{name}", allow_other_host: true, status: :found
   end
 end
