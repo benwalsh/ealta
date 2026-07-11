@@ -6,6 +6,11 @@
 # is due (see Enrichment::Policy's importance-keyed backoff), so we never re-derive the
 # same house-sparrow facts day after day.
 class EnrichmentBundle < ApplicationRecord
+  # Default at the model, not the DB: MySQL forbids a literal default on a JSON column and the
+  # SQLite schema dump can't round-trip an expression one, so `blocks` is `null: false` with no
+  # DB default and starts as [] here.
+  attribute :blocks, default: -> { [] }
+
   validates :sci_name, presence: true, uniqueness: { scope: :date }
   validates :date, presence: true
 

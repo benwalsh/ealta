@@ -10,7 +10,7 @@ class CreateEnrichmentTables < ActiveRecord::Migration[8.1]
       t.date :date, null: false
       t.string :common_name
       t.string :irish_name
-      t.json :blocks, null: false, default: -> { '(JSON_ARRAY())' }
+      t.json :blocks, null: false # default [] is set on the model (portable across SQLite/MySQL)
       t.string :source_run_id
       t.timestamps
     end

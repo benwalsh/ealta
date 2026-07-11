@@ -4,6 +4,12 @@ class JournalEntry < ApplicationRecord
   # the model's prose is stored; the day's figures and sparkline are recomputed from the
   # immutable detections on read. The Journal is the warm, past-tense counterpart to Live.
 
+  # Defaults at the model, not the DB: MySQL forbids a literal default on a JSON column and the
+  # SQLite schema dump can't round-trip an expression one, so these are `null: false` with no DB
+  # default and start empty here.
+  attribute :bullets, default: -> { {} }
+  attribute :sources, default: -> { [] }
+
   validates :date, presence: true, uniqueness: true
 
   class << self

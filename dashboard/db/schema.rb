@@ -31,7 +31,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_08_120000) do
   end
 
   create_table "enrichment_bundles", force: :cascade do |t|
-    t.json "blocks", default: [], null: false
+    t.json "blocks", null: false
     t.string "common_name"
     t.datetime "created_at", null: false
     t.date "date", null: false
@@ -61,11 +61,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_08_120000) do
   end
 
   create_table "journal_entries", force: :cascade do |t|
-    t.json "bullets", default: {}, null: false
+    t.json "bullets", null: false
     t.datetime "created_at", null: false
     t.date "date", null: false
     t.string "source"
-    t.json "sources", default: [], null: false
+    t.json "sources", null: false
     t.datetime "updated_at", null: false
     t.index ["date"], name: "index_journal_entries_on_date", unique: true
   end
