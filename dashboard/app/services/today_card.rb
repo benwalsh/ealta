@@ -174,13 +174,16 @@ class TodayCard
     end
 
     # Which buckets were OPERATIVE: the listener ticked in them, or (equivalently) a
-    # detection landed. With no ticks in the window at all — the cloud mirror, or before
-    # the mic is installed — we can't claim any blind spots, so treat it as fully covered
-    # (the sparkline then draws exactly as it always did).
+    # detection landed. When NO heartbeats exist AT ALL — the cloud mirror, or before the mic
+    # is installed — we can't claim any blind spots, so treat every bucket as covered (the
+    # sparkline draws exactly as it always did). But once heartbeats ARE recorded, gate on
+    # whether they exist globally, not just in this window: a window with none of them (and no
+    # detections) is a genuine blind spot — "no data" in every timeframe — rather than a quiet
+    # resting line in a 12h view and a gap band in the 24h that overlaps it.
     def coverage(start, width, buckets)
-      alive = Heartbeat.coverage(start, width, buckets.length)
-      return Array.new(buckets.length, true) unless alive.any?
+      return Array.new(buckets.length, true) unless Heartbeat.exists?
 
+      alive = Heartbeat.coverage(start, width, buckets.length)
       buckets.each_index.map { |i| alive[i] || buckets[i].positive? }
     end
 

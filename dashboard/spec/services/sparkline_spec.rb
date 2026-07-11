@@ -68,9 +68,15 @@ RSpec.describe Sparkline do
       expect(result.gaps.map { |g| [g[:from], g[:to]] }).to eq([[0, 5]])
     end
 
-    it 'assumes full coverage (no gaps) when there is no coverage signal at all' do
+    it 'assumes full coverage (no gaps) when there is NO coverage signal at all (nil)' do
       expect(described_class.paths(busy, coverage: nil).gaps).to eq([])
-      expect(described_class.paths(busy, coverage: Array.new(24, false)).gaps).to eq([])
+    end
+
+    it 'bands the whole window as one blind spot when coverage is explicitly all-false' do
+      # A window that lands entirely inside a blind spot (e.g. a 12h view inside a longer
+      # outage) must read as "no data", not a resting line — consistent with the 24h view.
+      result = described_class.paths(busy, coverage: Array.new(24, false))
+      expect(result.gaps.map { |g| [g[:from], g[:to]] }).to eq([[0, 23]])
     end
   end
 end
