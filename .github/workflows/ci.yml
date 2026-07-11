@@ -20,6 +20,17 @@ jobs:
           ruby-version: '4.0.5'
           bundler-cache: true
           working-directory: dashboard
+      # RSpec renders views that call vite_stylesheet_tag/vite_javascript_tag, so the Vite
+      # bundle must exist first — its manifest lives in gitignored public/vite-test. This
+      # project runs JS under bun (no node), so mirror the Dockerfile/`make build` path:
+      # install bun, install JS deps, build the test frontend.
+      - uses: oven-sh/setup-bun@v2
+      - name: Install JS deps
+        run: bun install --frozen-lockfile
+      - name: Build the Vite bundle (test env)
+        run: bin/vite build
+        env:
+          RAILS_ENV: test
       - name: RuboCop
         run: bin/rubocop
       - name: Prepare test DB (SQLite)
