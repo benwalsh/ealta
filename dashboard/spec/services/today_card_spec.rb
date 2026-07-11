@@ -44,4 +44,22 @@ RSpec.describe TodayCard do
     expect(card[:sparkline]).to include(:path, :fill, :w, :h)
     expect(card[:total]).to eq(0)
   end
+
+  describe 'coverage (the heartbeat gate)' do
+    let(:empty_buckets) { Array.new(24, 0) } # no detections either
+
+    it 'treats every bucket as covered when NO heartbeats exist at all (cloud mirror)' do
+      allow(Heartbeat).to receive(:exists?).and_return(false)
+      cov = described_class.send(:coverage, now - 24.hours, 3600.0, empty_buckets)
+      expect(cov).to all(be(true))
+    end
+
+    it 'marks a heartbeat-less, detection-less window as uncovered once heartbeats exist' do
+      # This is the fix: a 12h view landing entirely inside a longer outage reads as "no
+      # data" (all uncovered), the same as the 24h view around it — not a quiet resting line.
+      allow(Heartbeat).to receive_messages(exists?: true, coverage: Array.new(24, false))
+      cov = described_class.send(:coverage, now - 24.hours, 3600.0, empty_buckets)
+      expect(cov).to all(be(false))
+    end
+  end
 end
