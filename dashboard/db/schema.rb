@@ -229,7 +229,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_08_120000) do
     t.string "sci_name"
     t.string "token"
     t.datetime "updated_at", null: false
-    t.integer "user_id", null: false
+    t.bigint "user_id", null: false
     t.index ["alert_type", "sci_name"], name: "index_subscriptions_on_alert_type_and_sci_name"
     t.index ["token"], name: "index_subscriptions_on_token", unique: true
     t.index ["user_id"], name: "index_subscriptions_on_user_id"
