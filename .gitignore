@@ -66,6 +66,7 @@ pipeline/assets/_legacy/
 .env
 .env.*
 !.env.example
+.envrc
 
 # Station profiles: only the shipped reference profile is public. A private overlay
 # lives in its own repo and is pointed at via STATION_PROFILE; a scratch
@@ -79,7 +80,6 @@ model/*.tflite
 
 # creds) in PLAINTEXT — must never be committed. State lives locally / in a remote
 # backend, not in git.
-
 
 
 # Generated bird art belongs to a station profile, never to the engine.
