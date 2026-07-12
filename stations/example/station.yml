@@ -39,3 +39,41 @@ default_language: en
 
 # Admin identities (comma-friendly list). Also settable via ADMIN_EMAILS in .env.
 admin_emails: []
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Services — everything below is OPTIONAL and ships disabled.
+#
+# This works like a gem initializer: every option is listed with its default;
+# uncomment what your station opts into. With nothing uncommented you get the
+# free, key-less defaults — template narration, raw Wikipedia facts (en + ga),
+# flat Wikipedia-photo illustrations, local SQLite only.
+#
+# CHOICES live here (committable, no secrets). SECRETS stay in .env — API keys,
+# passwords and tokens are never put in this file. An env var always overrides
+# its setting here, so a deploy can pin values without editing the profile.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── LLM narration + enrichment (Amazon Bedrock) ──────────────────────────────
+# Uncommenting `llm:` (with a region or model) switches the daily note, Journal
+# and facts-&-folklore sourcing from their template/Wikipedia defaults to the
+# models below. Credentials come from the standard AWS chain — nothing here.
+# llm:
+#   # Region the Bedrock calls run in.                    (env: BEDROCK_REGION)
+#   region: eu-west-1
+#   # The everyday narrator: today note, Journal, digests. (env: BEDROCK_MODEL_ID)
+#   summary_model: eu.amazon.nova-lite-v1:0
+#   # The enrichment SOURCING pass — tool-use + judgement.  (env: ENRICH_MODEL_ID)
+#   enrich_model: eu.anthropic.claude-sonnet-4-5-20250929-v1:0
+#   # On a quiet day, still research this many due species (0 = notable-only).
+#   enrich_daily_floor: 1                              # (env: ENRICH_DAILY_FLOOR)
+
+# ── Illustrations ────────────────────────────────────────────────────────────
+# `make regen` with no GEMINI_API_KEY (in .env) draws the free default: the
+# bird's Wikipedia photo, background removed, dithered to the panel's six inks.
+# Setting the key switches regen to bespoke art via Gemini, styled by this
+# profile's image/prompt.template.md.
+# illustrations:
+#   # Serve art from a bucket/CDN instead of shipping the PNGs with the app —
+#   # /birds/<slug>.png redirects here when the file isn't on disk. Leave unset
+#   # to serve local files only.               (env: ILLUSTRATIONS_BASE_URL)
+#   base_url: https://dxxxxxxxxxxxx.cloudfront.net

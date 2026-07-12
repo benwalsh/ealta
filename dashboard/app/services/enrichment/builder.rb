@@ -18,10 +18,6 @@ module Enrichment
     # exhausting the budget on the archives and finalising with none.
     MAX_ROUNDS = 12
     MAX_FETCH_CHARS = 6000
-    # On a day with nothing notable, still source this many of the most interesting DUE
-    # species — the floor that keeps a quiet/young station building a facts & folklore
-    # library instead of sourcing nothing. 0 restores the old notable-only behaviour.
-    DAILY_FLOOR = Integer(ENV.fetch('ENRICH_DAILY_FLOOR', 1))
     # When research runs long, this forces the model to stop and answer from what it has
     # already fetched, so a thorough explorer still yields blocks instead of nothing.
     FINALISE = 'Stop searching now. Using ONLY the sources you have already fetched ' \
@@ -52,6 +48,14 @@ module Enrichment
       # rather than silently returning empty.
       attr_reader :last_error
 
+      # On a day with nothing notable, still source this many of the most interesting DUE
+      # species — the floor that keeps a quiet/young station building a facts & folklore
+      # library instead of sourcing nothing. 0 restores the old notable-only behaviour.
+      # Config: station.yml `llm.enrich_daily_floor` (ENRICH_DAILY_FLOOR overrides).
+      def daily_floor
+        Integer(Station.setting('llm.enrich_daily_floor', env: 'ENRICH_DAILY_FLOOR', default: 1))
+      end
+
       # Build (and store) bundles for the day's notable species that are DUE a refresh
       # under the importance-keyed backoff (Enrichment::Policy) — so a bird already
       # sourced recently isn't re-researched until its facts are worth revisiting.
@@ -79,7 +83,7 @@ module Enrichment
         return notable if notable.any?
 
         items.select { |i| due.call(i[:sci_name]) }.
-          first(DAILY_FLOOR).map { |i| i.slice(:sci_name, :common_name, :irish_name) }
+          first(daily_floor).map { |i| i.slice(:sci_name, :common_name, :irish_name) }
       end
 
       # One species → one stored bundle, or nil when nothing survived validation. With an LLM

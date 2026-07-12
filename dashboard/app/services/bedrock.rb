@@ -28,13 +28,15 @@ class Bedrock
       ENV['SUMMARY_LLM_DISABLED'].present?
     end
 
-    # Has this station opted into the LLM? A configured station sets BEDROCK_REGION /
-    # BEDROCK_MODEL_ID (yourstation does, on the ECS task); a fresh clone or a local box sets
-    # neither, so LLM-optional callers take their no-model path — enrichment falls back to raw
-    # Wikipedia summaries, the "today" note to its template — rather than dialling Bedrock with
-    # no credentials. This is what makes the default station work with no cloud account.
+    # Has this station opted into the LLM? Opt-in is `llm:` in station.yml (the Devise-style
+    # services config) or the BEDROCK_REGION / BEDROCK_MODEL_ID envs (yourstation sets those on
+    # the ECS task). A fresh clone sets neither, so LLM-optional callers take their no-model
+    # path — enrichment falls back to raw Wikipedia summaries, the "today" note to its
+    # template — rather than dialling Bedrock with no credentials. This is what makes the
+    # default station work with no cloud account.
     def available?
-      !disabled? && (ENV['BEDROCK_REGION'].present? || ENV['BEDROCK_MODEL_ID'].present?)
+      !disabled? && [Station.setting('llm.region', env: 'BEDROCK_REGION'),
+                     Station.setting('llm.summary_model', env: 'BEDROCK_MODEL_ID')].any?(&:present?)
     end
 
     # Send a system prompt + user message through Converse and return the model's
@@ -69,16 +71,18 @@ class Bedrock
       )
     end
 
+    # Model/region choices come from station.yml's `llm:` block (env overrides for deploys) —
+    # see Station.setting. Defaults keep an unconfigured call working in tests/stubs.
     def model_id
-      ENV.fetch('BEDROCK_MODEL_ID', DEFAULT_MODEL)
+      Station.setting('llm.summary_model', env: 'BEDROCK_MODEL_ID', default: DEFAULT_MODEL)
     end
 
     def enrich_model_id
-      ENV.fetch('ENRICH_MODEL_ID', DEFAULT_ENRICH_MODEL)
+      Station.setting('llm.enrich_model', env: 'ENRICH_MODEL_ID', default: DEFAULT_ENRICH_MODEL)
     end
 
     def region
-      ENV.fetch('BEDROCK_REGION', DEFAULT_REGION)
+      Station.setting('llm.region', env: 'BEDROCK_REGION', default: DEFAULT_REGION)
     end
 
     private
