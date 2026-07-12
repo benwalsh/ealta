@@ -28,6 +28,15 @@ class Bedrock
       ENV['SUMMARY_LLM_DISABLED'].present?
     end
 
+    # Has this station opted into the LLM? A configured station sets BEDROCK_REGION /
+    # BEDROCK_MODEL_ID (yourstation does, on the ECS task); a fresh clone or a local box sets
+    # neither, so LLM-optional callers take their no-model path — enrichment falls back to raw
+    # Wikipedia summaries, the "today" note to its template — rather than dialling Bedrock with
+    # no credentials. This is what makes the default station work with no cloud account.
+    def available?
+      !disabled? && (ENV['BEDROCK_REGION'].present? || ENV['BEDROCK_MODEL_ID'].present?)
+    end
+
     # Send a system prompt + user message through Converse and return the model's
     # plain text. Raises on any transport/credential error — the caller decides how
     # to degrade (keep last-good cache, else template).

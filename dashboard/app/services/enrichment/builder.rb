@@ -82,15 +82,23 @@ module Enrichment
           first(DAILY_FLOOR).map { |i| i.slice(:sci_name, :common_name, :irish_name) }
       end
 
-      # One species → one stored bundle, or nil when nothing survived validation.
+      # One species → one stored bundle, or nil when nothing survived validation. With an LLM
+      # configured, Claude sources typed, cited blocks; without one, the station falls back to
+      # a raw Wikipedia fact block (Enrichment::Wikipedia) so a fresh, key-less station still
+      # shows sourced facts instead of nothing.
       def build_one(date:, sci_name:, common_name: nil, irish_name: nil)
         name = BirdName.lookup(sci_name)
-        blocks = source_blocks(sci_name: sci_name, common_name: common_name || name.en)
+        cn = common_name || name.en
+        blocks = if Bedrock.available?
+                   source_blocks(sci_name: sci_name, common_name: cn)
+                 else
+                   Wikipedia.blocks_for(sci_name: sci_name, common_name: cn)
+                 end
         return nil if blocks.empty?
 
         bundle = EnrichmentBundle.find_or_initialize_by(sci_name: sci_name, date: date)
         bundle.update!(
-          common_name: common_name || name.en,
+          common_name: cn,
           irish_name:  irish_name || name.ga,
           blocks:      blocks.map(&:to_h)
         )
