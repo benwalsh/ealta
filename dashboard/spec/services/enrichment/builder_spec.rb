@@ -15,7 +15,7 @@ RSpec.describe Enrichment::Builder do
   end
 
   before do
-    allow(Bedrock).to receive(:disabled?).and_return(false)
+    allow(Bedrock).to receive_messages(disabled?: false, available?: true) # exercise the LLM sourcing path
     # The one real network boundary — everything else in SourceFetcher runs for real
     # (trusted-host check, the source_fetch_log write, text extraction).
     allow_any_instance_of(Enrichment::SourceFetcher).to receive(:http_get).
@@ -59,6 +59,18 @@ RSpec.describe Enrichment::Builder do
     allow(Bedrock).to receive(:converse_tools).and_return(response('end_turn', [text_item('[]')]))
     expect(described_class.build_one(date: date, sci_name: sci)).to be_nil
     expect(EnrichmentBundle.where(sci_name: sci)).to be_empty
+  end
+
+  it 'falls back to a Wikipedia fact block when no LLM is configured' do
+    allow(Bedrock).to receive(:available?).and_return(false)
+    wiki = Enrichment::Block.from(
+      type: 'fact', id: 'wikipedia-x', text: 'A small woodland thrush.',
+      sources: [{ host: 'en.wikipedia.org', url: 'https://en.wikipedia.org/wiki/x' }]
+    )
+    allow(Enrichment::Wikipedia).to receive(:blocks_for).and_return([wiki])
+
+    bundle = described_class.build_one(date: date, sci_name: sci, common_name: 'Long-tailed Tit')
+    expect(bundle.block_objects.map(&:id)).to eq(['wikipedia-x'])
   end
 
   describe '.run daily floor (so a quiet station still builds a library)' do
