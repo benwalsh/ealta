@@ -40,10 +40,22 @@ analyze:  ## analyse a recording:  make analyze FILE=path/to/song.wav
 	set -a; source .env; set +a; \
 	uv run python birdnet/listen.py recording "$(FILE)"
 
-regen:  ## regenerate one bird's art:  make regen SPECIES="Corvus monedula|Eurasian Jackdaw"
-	set -a; source .env; set +a; \
-	uv run python pipeline/scripts/pregen.py --species "$(SPECIES)" --poses 1 --force && \
-	uv run python pipeline/scripts/cutout_flood.py
+regen:  ## generate bird art into the profile. GEMINI_API_KEY set → kachō-e via Gemini; unset → flat Wikipedia default. One bird: SPECIES="Sci|Common"; whole set: LABELS=path/to/labels.txt
+	set -a; [ -f .env ] && . ./.env; set +a
+	if [ -z "$(SPECIES)" ] && [ -z "$(LABELS)" ]; then
+	  echo "give SPECIES=\"Sci name|Common name\" for one bird, or LABELS=path/to/labels.txt for the whole set" >&2
+	  exit 2
+	fi
+	if [ -n "$(SPECIES)" ]; then sel=(--species "$(SPECIES)"); else sel=(--labels "$(LABELS)"); fi
+	if [ -n "$$GEMINI_API_KEY" ]; then
+	  echo "→ GEMINI_API_KEY set: kachō-e via Gemini"
+	  uv run python pipeline/scripts/pregen.py "$${sel[@]}" --poses 1 --force
+	  uv run python pipeline/scripts/cutout_flood.py
+	else
+	  echo "→ no GEMINI_API_KEY: flat Wikipedia default (photo → cutout → Spectra-6)"
+	  uv run python pipeline/scripts/flatgen.py "$${sel[@]}" --force
+	fi
+	uv run python pipeline/scripts/build_masks.py
 
 cutout:  ## flood-cut any cream-ground illustrations to transparent
 	uv run python pipeline/scripts/cutout_flood.py
