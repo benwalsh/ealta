@@ -5,10 +5,14 @@ description = "Python edges of ealta: BirdNET listener + the illustration pipeli
 # Pinned to 3.12: TensorFlow (via birdnetlib) has no wheels for 3.14 yet.
 requires-python = "==3.12.*"
 dependencies = [
-    # Image handling for the illustration pipeline (generate/cutout/masks).
-    # Kept light: background removal uses a Pillow flood-fill, not rembg, whose
-    # numba/llvmlite chain conflicts with the BirdNET stack here.
+    # Image handling + background removal for the illustration pipeline. The default
+    # no-key tier (flatgen.py) mattes Wikipedia photos with rembg/onnxruntime (u2net,
+    # ~170 MB fetched on first run), so a fresh station has real bird pictures with no
+    # API key. The Gemini tier's flat cream ground is flood-cut with Pillow alone
+    # (cutout_flood.py), so that path never needs the model.
     "pillow>=10",
+    "rembg>=2.0.76",
+    "onnxruntime>=1.16",
     # numpy + scipy power the cutout: vectorised sentinel removal and the
     # connected-component despeckle that sweeps stray flecks. (scipy also rides
     # in via librosa, but the cutout depends on it directly, so declare it.)
