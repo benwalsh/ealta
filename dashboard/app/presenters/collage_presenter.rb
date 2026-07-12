@@ -82,11 +82,11 @@ class CollagePresenter
     flying = flying_set(@tally.map(&:sci_name))
     @tally.each_with_index.map do |tally, i|
       name = tally.name
-      file = illustration_file(name.sci, flying.include?(name.sci))
-      { tally: tally, name: name, file: file,
-        mask: file && BirdMask.for(file.basename('.png').to_s),
+      slug = illustration_slug(name.sci, flying.include?(name.sci))
+      { tally: tally, name: name, slug: slug,
+        mask: slug && BirdMask.for(slug),
         flip: facing_flip?(name.sci),
-        weight: radii[i]**2, aspect: aspect_for(file) }
+        weight: radii[i]**2, aspect: aspect_for(slug) }
     end
   end
 
@@ -157,29 +157,25 @@ class CollagePresenter
       # disc-equivalent radius (geometric-mean half-extent) for the no-art fallback
       r: (Math.sqrt(width * height) / 2).round(2),
       w: width.round(2), h: height.round(2),
-      image: illustration_url(bird[:file]),
+      image: illustration_url(bird[:slug]),
       # Always the perched pose (a flier's node.image is its -2 flight art; this isn't).
-      perch_image: illustration_url(illustration_file(name.sci, false)) || illustration_url(bird[:file]),
+      perch_image: illustration_url(illustration_slug(name.sci, false)) || illustration_url(bird[:slug]),
       fill: FILLS[index % FILLS.size],
       sci: name.sci, ga: name.ga, en: name.en, count: bird[:tally].count,
       flip: bird[:flip]
     )
   end
 
-  # nil when the station ships no art at all, or none for this bird — the node then
-  # carries image: nil and the collage draws it without a picture.
-  def illustration_file(sci, fly)
-    dir = StationProfile.illustrations_dir
-    return nil unless dir
-
+  # The illustration slug for a bird — its flight (-2) art when flying and available, else its
+  # perched art, else nil (the node then carries image: nil and the collage draws a plain disc).
+  # Availability is judged from masks.json — which ships with the profile and lists every bird
+  # that HAS art — not from a PNG on disk: the art may be CDN-served (ILLUSTRATIONS_BASE_URL),
+  # absent from the cloud image, with /birds/<slug>.png redirecting there.
+  def illustration_slug(sci, fly)
     base = sci.downcase.tr(' ', '-')
-    if fly
-      flight = dir.join("#{base}-2.png")
-      return flight if flight.exist?
-    end
+    return "#{base}-2" if fly && BirdMask.for("#{base}-2")
 
-    perched = dir.join("#{base}.png")
-    perched.exist? ? perched : nil
+    BirdMask.for(base) ? base : nil
   end
 
   # The ~FLY_PROB of the *shown* species that take flight. We rank the birds on
@@ -203,27 +199,24 @@ class CollagePresenter
     Zlib.crc32("flip:#{sci.downcase.tr(' ', '-')}@#{Date.current}").odd?
   end
 
-  def illustration_url(file)
-    return nil unless file
-
-    # ?v=mtime busts the browser/Inky cache when a bird is regenerated.
-    "/birds/#{file.basename}?v=#{file.mtime.to_i}"
+  def illustration_url(slug)
+    slug && "/birds/#{slug}.png?v=#{illustration_version}"
   end
 
-  # The bird's width/height ratio from the PNG header (natural aspect, lightly
-  # clamped for safety). No-art birds (no file) are square.
-  def aspect_for(file)
-    return 1.0 unless file
+  # One cache-busting stamp for every illustration URL: the mtime of masks.json, rebuilt
+  # whenever the art is regenerated. Coarser than a per-file mtime, but it works when the PNGs
+  # live on a CDN rather than local disk. 0 when the profile ships no masks.
+  def illustration_version
+    @illustration_version ||= StationProfile.path('illustrations/masks.json')&.mtime.to_i
+  end
 
-    header = file.binread(24)
-    return 1.0 unless header && header.byteslice(0, 8) == "\x89PNG\r\n\x1a\n".b
+  # The bird's width/height ratio from its silhouette mask (masks.json), lightly clamped.
+  # No-art birds are square. Sourced from the mask, not the PNG header, so it holds when the
+  # art is CDN-served and never touches local disk.
+  def aspect_for(slug)
+    mask = slug && BirdMask.for(slug)
+    return 1.0 unless mask
 
-    width = header.byteslice(16, 4).unpack1('N').to_i
-    height = header.byteslice(20, 4).unpack1('N').to_i
-    return 1.0 if height.zero?
-
-    (width.to_f / height).clamp(ASPECT_RANGE.begin, ASPECT_RANGE.end)
-  rescue StandardError
-    1.0
+    (mask.width.to_f / mask.height).clamp(ASPECT_RANGE.begin, ASPECT_RANGE.end)
   end
 end
