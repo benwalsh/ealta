@@ -15,6 +15,23 @@ class Station
                      es: 'Español', cy: 'Cymraeg', nl: 'Nederlands' }.freeze
 
   class << self
+    # One dotted lookup for station.yml's service settings — the Devise-initializer pattern:
+    # every option ships commented-out in stations/example/station.yml with its default; a
+    # station uncomments what it opts into. Precedence: ENV (deploy/secret override) → the
+    # profile's station.yml → the built-in default. Secrets never live in the YAML — an env
+    # name is passed by the caller precisely so keys/passwords stay in .env.
+    #
+    #   Station.setting('llm.region', env: 'BEDROCK_REGION', default: nil)
+    def setting(path, env: nil, default: nil)
+      override = env && ENV[env].presence
+      return override if override
+
+      value = path.to_s.split('.').reduce(StationProfile.config) do |node, key|
+        node.is_a?(Hash) ? node[key] : nil
+      end
+      value.nil? || (value.respond_to?(:empty?) && value.empty?) ? default : value
+    end
+
     # The languages this station offers, most-preferred first (from station.yml), or [:en].
     def languages
       Array(StationProfile.config['languages']).map { |l| l.to_s.to_sym }.presence || %i[en]

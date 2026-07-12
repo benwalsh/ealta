@@ -42,7 +42,7 @@ class StationAssetsController < ApplicationController
       return send_file path, type: 'image/png', disposition: 'inline'
     end
 
-    base = ENV['ILLUSTRATIONS_BASE_URL'].presence
+    base = Station.setting('illustrations.base_url', env: 'ILLUSTRATIONS_BASE_URL')
     return head :not_found if base.nil?
 
     expires_in 1.day, public: true
