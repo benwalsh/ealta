@@ -35,26 +35,28 @@ module ApplicationHelper
   # URL for a species' illustration, or nil if the station ships none. The art lives in
   # the station profile and is served by StationAssetsController; the /birds/ URL shape
   # is unchanged, only the source of the bytes.
+  # Availability comes from masks.json (BirdMask), which lists every bird that HAS art and ships
+  # with the profile — NOT from a PNG on disk, since the art may be CDN-served and absent from
+  # the cloud image, with /birds/<slug>.png redirecting there.
   def bird_illustration(sci)
-    dir = StationProfile.illustrations_dir
-    return nil unless dir
-
     slug = sci.downcase.tr(' ', '-')
-    file = dir.join("#{slug}.png")
-    # ?v=mtime busts the browser cache when a bird is regenerated.
-    file.exist? ? "/birds/#{slug}.png?v=#{file.mtime.to_i}" : nil
+    BirdMask.for(slug) ? "/birds/#{slug}.png?v=#{illustration_version}" : nil
   end
 
-  # Both illustration poses for the modal — perched and (when we have it) in
-  # flight — as [label, url] pairs, skipping any the station doesn't ship.
+  # Both illustration poses for the modal — perched and (when we have it) in flight — as
+  # [label, url] pairs, skipping any the station doesn't ship.
   def bird_illustrations(sci)
-    dir = StationProfile.illustrations_dir
-    return [] unless dir
-
     slug = sci.downcase.tr(' ', '-')
-    { 'perched' => "#{slug}.png", 'in flight' => "#{slug}-2.png" }.filter_map do |label, name|
-      file = dir.join(name)
-      [label, "/birds/#{name}?v=#{file.mtime.to_i}"] if file.exist?
+    { 'perched' => slug, 'in flight' => "#{slug}-2" }.filter_map do |label, name|
+      [label, "/birds/#{name}.png?v=#{illustration_version}"] if BirdMask.for(name)
     end
+  end
+
+  private
+
+  # One cache-busting stamp for illustration URLs: masks.json's mtime, rebuilt whenever the art
+  # is regenerated. Works when the PNGs are CDN-served rather than on local disk.
+  def illustration_version
+    @illustration_version ||= StationProfile.path('illustrations/masks.json')&.mtime.to_i
   end
 end
