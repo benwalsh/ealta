@@ -72,7 +72,7 @@ def main() -> int:
         default=Path(__file__).resolve().parents[1] / "assets" / "references",
         help="Reference-photo cache (shared with pregen.py)",
     )
-    ap.add_argument("--model", default="birefnet-general", help="rembg matting model (default: birefnet-general)")
+    ap.add_argument("--model", default="u2net", help="rembg matting model (default: u2net, ~170 MB)")
     ap.add_argument("--margin", type=float, default=0.04, help="crop padding as a fraction of the bird's longer side")
     ap.add_argument("--force", action="store_true", help="regenerate even if <slug>.png already exists")
     ap.add_argument("--limit", type=int, default=0, help="cap species count (for testing)")
