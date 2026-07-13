@@ -27,14 +27,15 @@ class TodaySummary
         facts_date: facts[:date], generated_at: nil }
     end
 
-    # Regenerate and cache. Best-effort: when the model wrote it (or is disabled), store the
-    # fresh result; when a model call was attempted but failed, keep the last-good cache rather
+    # Regenerate and cache. Best-effort: when the model wrote it — or no model is coming at
+    # all (unconfigured or disabled), so the facts fallback IS the note — store the fresh
+    # result; when a model call was attempted but failed, keep the last-good cache rather
     # than overwriting it, and only synthesise a fresh fallback when there is nothing cached.
     # `enrich: false` skips the (slower) sourcing step for the page-load path.
     def refresh(now: Time.current, enrich: true)
       facts = DailyFacts.for(now: now)
       result = DayNarrator.narrate(facts, enrich: enrich)
-      return store(result, facts) if result[:source] == 'llm' || Bedrock.disabled?
+      return store(result, facts) if result[:source] == 'llm' || !Bedrock.available?
       return current(facts: facts) if valid_cache_for?(facts)
 
       store(result, facts)
