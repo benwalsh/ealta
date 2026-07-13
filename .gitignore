@@ -84,3 +84,10 @@ model/*.tflite
 
 # Generated bird art belongs to a station profile, never to the engine.
 /pipeline/assets/illustrations/
+
+# Per-station OpenTofu state/config — a fork's own values, never the template's.
+infrastructure/.terraform/
+infrastructure/.terraform.lock.hcl
+infrastructure/terraform.tfvars
+infrastructure/backend.hcl
+infrastructure/*.tfstate*

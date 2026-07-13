@@ -1,0 +1,71 @@
+name: Deploy to ECS Express
+
+# Deploys YOUR FORK's station to its AWS cloud mirror: build the image (your committed
+# station profile rides along — see STATION_PROFILE on the ECS task), push to ECR, roll
+# the ECS Express service. Auth is OIDC — no stored AWS keys (infrastructure/github_oidc.tf).
+#
+# On the public ealta repo this workflow is INERT: it runs only when the repo variables
+# below are set, which only a deploying fork does. After `tofu apply`, set them from the
+# tofu outputs (Settings → Secrets and variables → Actions → Variables):
+#
+#   STATION_NAME     your station (tofu var.station_name — names the cluster/service)
+#   AWS_REGION       e.g. eu-west-1
+#   DEPLOY_ROLE_ARN  tofu output github_deploy_role_arn
+#   ECR_REPO         tofu output ecr_repository_url
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One deploy at a time — a second push waits rather than racing two rollouts.
+concurrency:
+  group: deploy-ecs-express
+  cancel-in-progress: false
+
+permissions:
+  id-token: write # mint the OIDC token
+  contents: read
+
+jobs:
+  deploy:
+    # The fork-model gate: no STATION_NAME variable (the public repo) → no deploy.
+    if: vars.STATION_NAME != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # The whole repo is the build context — your fork's stations/<name> profile is
+      # committed here, so it bakes straight into the image at /app/stations/<name>;
+      # the ECS task's STATION_PROFILE points at it (infrastructure/ecs.tf).
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64 # ECS Express runs x86_64
+          push: true
+          tags: |
+            ${{ vars.ECR_REPO }}:latest
+            ${{ vars.ECR_REPO }}:${{ github.sha }}
+
+      # Force a new deployment rather than re-declaring the service: Terraform stays the
+      # single owner of the service SHAPE (image tag, env, secrets, scaling); CI only
+      # triggers a re-pull of :latest. --force-new-deployment can't clobber config.
+      - name: Roll ECS Express onto the new image
+        run: |
+          set -euo pipefail
+          echo "Rolling ${{ vars.STATION_NAME }} onto ${{ vars.ECR_REPO }}:${GITHUB_SHA} (via :latest)"
+          aws ecs update-service --cluster "${{ vars.STATION_NAME }}" --service "${{ vars.STATION_NAME }}" \
+            --force-new-deployment >/dev/null
+          echo "Waiting for the deployment to reach steady state…"
+          aws ecs wait services-stable --cluster "${{ vars.STATION_NAME }}" --services "${{ vars.STATION_NAME }}"
+          echo "Deployed: ${{ vars.ECR_REPO }}:${GITHUB_SHA}"

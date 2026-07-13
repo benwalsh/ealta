@@ -1,0 +1,12 @@
+# Your station's settings. Copy to terraform.tfvars (gitignored) in your fork.
+# Secrets (the Google OAuth pair) can live here or come from TF_VAR_* env vars.
+
+station_name      = "yourstation"           # prefixes every AWS resource; selects stations/<name>
+domain_name       = "yourstation.example"   # the public apex domain you own
+github_repository = "you/yourstation"       # your fork, for the OIDC deploy role
+
+# aws_region        = "eu-west-1"
+# db_instance_class = "db.t4g.micro"
+
+# google_client_id     = "…"
+# google_client_secret = "…"

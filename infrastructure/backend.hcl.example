@@ -1,0 +1,7 @@
+# Where THIS station's OpenTofu state lives. Copy to backend.hcl (gitignored) in your
+# fork and name your own bucket/table, then:  tofu init -backend-config=backend.hcl
+# The bucket + lock table are the one thing tofu can't create for itself — bootstrap
+# them once with the aws CLI (see README.md).
+bucket         = "yourstation-tfstate"
+region         = "eu-west-1"
+dynamodb_table = "yourstation-tflock"
