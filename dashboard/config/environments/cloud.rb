@@ -18,7 +18,12 @@ Rails.application.configure do
   # 422ing. Host authorization must therefore allow the public host alongside the
   # origin host the ALB health checks arrive on; SITE_URL carries the public domain.
   config.hosts << URI(ENV['SITE_URL']).host if ENV['SITE_URL'].present?
-  config.hosts << /.*\.on\.aws/ # the ECS Express origin endpoint (health checks, direct hits)
+  config.hosts << /.*\.on\.aws/ # the ECS Express origin endpoint (direct hits)
+  # Health checks don't carry a real host: the ALB probes /up with the task's private IP
+  # as Host, and the container HEALTHCHECK curls localhost — an allow-list would 403 both,
+  # fail every probe, and the deployment circuit breaker rolls the service back (it did).
+  # Exempt the health endpoint from host authorization; everything else stays enforced.
+  config.host_authorization = { exclude: ->(request) { request.path == '/up' } }
 
   # First cut: the container serves its own static assets (digested JS/CSS under
   # /assets, the Vite bundle under /vite, the bird PNGs under /birds) and
