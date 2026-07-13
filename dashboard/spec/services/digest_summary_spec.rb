@@ -22,13 +22,13 @@ RSpec.describe DigestSummary do
   end
 
   it 'returns the note when the model produces valid prose' do
-    allow(Bedrock).to receive_messages(disabled?: false,
+    allow(Bedrock).to receive_messages(disabled?: false, available?: true,
                                        converse:  'Your corncrake called twice today, a quiet day otherwise.')
     expect(described_class.for(facts)).to eq(['Your corncrake called twice today, a quiet day otherwise.'])
   end
 
   it 'rejects a shouting note (house rule: no exclamation marks) and falls back' do
-    allow(Bedrock).to receive_messages(disabled?: false,
+    allow(Bedrock).to receive_messages(disabled?: false, available?: true,
                                        converse:  'Your corncrake was heard twice today, and nothing else you follow!')
     expect(described_class.for(facts)).to be_nil
   end

@@ -68,7 +68,7 @@ RSpec.describe DayNarrator do
 
     it 'narrates with the model when one is available' do
       allow(Bedrock).to receive_messages(
-        disabled?: false,
+        disabled?: false, available?: true,
         converse:  "- A Common Greenshank (Laidhrín glas) was heard for the first time.\n" \
                    '- The usual sparrows made up the rest of a quiet day.'
       )
@@ -83,7 +83,10 @@ RSpec.describe DayNarrator do
   # in-progress day says "today". The fixture's date (2026-07-03) is before the test's today.
   describe 'completed-day framing' do
     # The generic stub covers the Irish translation pass (whose prompt never carries the note).
-    before { allow(Bedrock).to receive_messages(disabled?: false, converse: "- A quiet day.\n- The usual sparrows.") }
+    before do
+      allow(Bedrock).to receive_messages(disabled?: false, available?: true,
+                                         converse: "- A quiet day.\n- The usual sparrows.")
+    end
 
     it 'instructs the past tense when the date is a completed day' do
       expect(Bedrock).to receive(:converse).

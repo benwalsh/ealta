@@ -63,7 +63,9 @@ class DayNarrator
       ensure_notable_enriched(facts) if enrich && model
       lore = enrichment_for(facts)
       sources = sources_from(lore)
-      if model && !Bedrock.disabled? && (bullets = generate(facts, lore))
+      # available? (not just !disabled?): a station with no LLM configured skips the model
+      # attempt entirely and takes the rich facts fallback — no doomed Bedrock call to rescue.
+      if model && Bedrock.available? && (bullets = generate(facts, lore))
         return { bullets: bullets, source: 'llm', sources: sources }
       end
 

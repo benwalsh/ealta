@@ -107,7 +107,7 @@ RSpec.describe TodaySummary do
     context 'when the LLM returns good bullets' do
       before do
         allow(Bedrock).to receive_messages(
-          disabled?: false,
+          disabled?: false, available?: true,
           converse:  "- A Common Greenshank (Laidhrín glas) was heard for the first time.\n" \
                      '- The usual sparrows made up the rest of a quiet day.'
         )
@@ -124,7 +124,7 @@ RSpec.describe TodaySummary do
 
     context 'when the model output breaks a house rule' do
       before do
-        allow(Bedrock).to receive_messages(disabled?: false,
+        allow(Bedrock).to receive_messages(disabled?: false, available?: true,
                                            converse:  '- A busy, thriving day for ealta!')
       end
 
@@ -144,7 +144,7 @@ RSpec.describe TodaySummary do
       before do
         allow(DailyFacts).to receive(:for).and_return(routine_facts)
         allow(Bedrock).to receive_messages(
-          disabled?: false,
+          disabled?: false, available?: true,
           converse:  "- First detection today of the Graylag Goose.\n- A quiet day otherwise."
         )
       end
@@ -165,7 +165,7 @@ RSpec.describe TodaySummary do
       before do
         allow(DailyFacts).to receive(:for).and_return(routine_facts)
         allow(Bedrock).to receive_messages(
-          disabled?: false,
+          disabled?: false, available?: true,
           converse:  "- A quiet day, the usual sparrows.\n- No new arrivals or firsts were detected today."
         )
       end
@@ -176,7 +176,7 @@ RSpec.describe TodaySummary do
     end
 
     context 'when generation fails but a good summary is already cached' do
-      before { allow(Bedrock).to receive(:disabled?).and_return(false) }
+      before { allow(Bedrock).to receive_messages(disabled?: false, available?: true) }
 
       it 'keeps the last-good cache rather than overwriting it' do
         allow(Bedrock).to receive(:converse).and_return("- First good line.\n- Second good line.")

@@ -8,7 +8,7 @@ class DigestSummary
   class << self
     # The note as an array of paragraph lines, or nil to fall back to the list email.
     def for(facts)
-      return nil if Bedrock.disabled?
+      return nil unless Bedrock.available? # no LLM configured → the deterministic list email
 
       raw = Bedrock.converse(system: format(Prompts.get('digest_summary.system'), where: station_context),
                              user:   user_message(facts))
