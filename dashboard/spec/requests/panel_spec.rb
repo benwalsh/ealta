@@ -1,7 +1,14 @@
 require 'rails_helper'
 
 RSpec.describe 'Panel' do
-  # The bare 800x480 SVG the Inky shooter screenshots — no web chrome.
+  # The panel surfaces exist only for a station WITH a configured screen (station.yml
+  # `screen:`), so these specs run as one. The gating itself is asserted at the bottom.
+  before do
+    allow(Station).to receive(:screen).
+      and_return({ name: 'Test panel', width: 480, height: 800 })
+  end
+
+  # The bare collage SVG the e-ink shooter screenshots — no web chrome.
   it 'renders the SVG without the nav or window picker' do
     create(:detection, Sci_Name: 'Erithacus rubecula', Com_Name: 'European Robin')
     get '/panel'
@@ -16,7 +23,7 @@ RSpec.describe 'Panel' do
     get '/emulator'
     expect(response).to have_http_status(:success)
     expect(response.body).to include('id="panel"').and include('SPECTRA6')
-    expect(response.body).to include('Inky Impression 7.3')
+    expect(response.body).to include('Test panel') # the configured screen's name labels the emulator
   end
 
   # /station is the CLEAN 480x800 device screen the Inky shows and the shooter captures:
@@ -102,6 +109,16 @@ RSpec.describe 'Panel' do
       expect(response.body.scan('data-kiosk-target').size).to eq(4)
       expect(response.body).to include('kiosk')       # the controller drives the cycle
       expect(response.body).to include('stat-grid')   # the numbers card lives here now
+    end
+  end
+
+  describe 'a station with no screen configured' do
+    it '404s every panel surface — there is no glass to render for' do
+      allow(Station).to receive(:screen).and_return(nil)
+      %w[/panel /emulator /station /station/preview].each do |path|
+        get path
+        expect(response).to have_http_status(:not_found), "expected 404 for #{path}"
+      end
     end
   end
 end

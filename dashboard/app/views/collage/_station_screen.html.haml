@@ -1,9 +1,11 @@
--# The station screen — the exact pixels the Inky shows. Shared by /station (the clean
--# device view the shooter captures) and /station/preview (the framed e-ink emulation),
--# so the desktop preview can never drift from what the panel actually renders. It reads
--# like a daily printed field-guide broadside, not a live dashboard: the plate is frozen
--# for the day, and only the live line + status stamp move.
-%main.screen.station
+-# The station screen — the exact pixels the e-ink panel shows. Shared by /station (the
+-# clean device view the shooter captures) and /station/preview (the framed emulation),
+-# so the desktop preview can never drift from what the panel actually renders. Its size
+-# is the station's OWN screen (station.yml `screen:`), inlined so any panel works — the
+-# stylesheet's 480×800 is only a fallback. It reads like a daily printed field-guide
+-# broadside, not a live dashboard: the plate is frozen for the day, and only the live
+-# line + status stamp move.
+%main.screen.station{ style: "width: #{Station.screen[:width]}px; height: #{Station.screen[:height]}px" }
   %header.head
     %h1.wordmark= Station.site_name
     - if (here = station_text(Station.place))

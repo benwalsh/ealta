@@ -69,6 +69,17 @@ admin_emails: []
 #   # On a quiet day, still research this many due species (0 = notable-only).
 #   enrich_daily_floor: 1                              # (env: ENRICH_DAILY_FLOOR)
 
+# ── E-ink screen ─────────────────────────────────────────────────────────────
+# The physical panel this station drives, if any. Unset = no glass: /station,
+# /panel, the emulator and the frame shooter all switch off. Width/height are
+# the station-page viewport AS MOUNTED (portrait numbers for a rotated
+# landscape panel). The reference hardware is Pimoroni's Inky Impression 7.3″,
+# but any e-ink screen with a Python driver fits the shooter.
+# screen:
+#   name: Inky Impression 7.3\"
+#   width: 480
+#   height: 800
+
 # ── Web port ─────────────────────────────────────────────────────────────────
 # The dashboard's local port. Unset = 3000 (the Rails default); a $PORT env var
 # overrides either. Every tool (make serve/dev, the frame shooter) follows this.

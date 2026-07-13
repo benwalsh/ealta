@@ -3,7 +3,7 @@
   %head
     %meta{ charset: "utf-8" }/
     %meta{ name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" }/
-    %title #{Station.site_name} · Inky 7.3″ emulator
+    %title #{Station.site_name} · #{Station.screen[:name]} emulator
     :css
       * { box-sizing: border-box; }
       html, body { margin: 0; height: 100%; }
@@ -49,7 +49,7 @@
           %canvas#panel{ width: "800", height: "480" }
       .plate
         %span.name Tigh Bhreadáin
-        %span.spec Inky Impression 7.3″ · Spectra 6 · 800×480
+        %span.spec #{Station.screen[:name]} · Spectra 6 · #{Station.screen[:width]}×#{Station.screen[:height]}
       %p#status.status rendering…
     :javascript
       // The panel's six Spectra-6 inks — identical to shooter/shoot.py's SPECTRA6,

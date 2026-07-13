@@ -26,8 +26,10 @@ class CollageController < ApplicationController
     }
   end
 
-  # The bare 800x480 SVG, no chrome — what the Inky shooter screenshots.
+  # The bare collage SVG, no chrome — what the e-ink shooter screenshots.
   def panel
+    return head :not_found unless Station.screen
+
     @collage = collage
     render partial: 'panel', layout: false
   end
@@ -35,6 +37,8 @@ class CollageController < ApplicationController
   # A standalone page that mocks the physical panel: it fetches /panel and dithers
   # it to the Spectra-6 palette client-side (see the view). No @collage needed here.
   def emulator
+    return head :not_found unless Station.screen
+
     render layout: false
   end
 
@@ -47,11 +51,15 @@ class CollageController < ApplicationController
     render layout: false
   end
 
-  # /station — the clean 480×800 screen the Inky shows and the shooter captures: a daily
-  # printed-broadside edition — the frozen collage plate, a live line (species count + the
-  # latest arrival), the ambient almanac, and a status marker with an honest "updated"
-  # stamp (not a live clock). No frame, no e-ink filter — the panel dithers it itself.
+  # /station — the clean screen the e-ink panel shows and the shooter captures (its
+  # dimensions come from station.yml `screen:`): a daily printed-broadside edition — the
+  # frozen collage plate, a live line (species count + the latest arrival), the ambient
+  # almanac, and a status marker with an honest "updated" stamp (not a live clock). No
+  # frame, no e-ink filter — the panel dithers it itself. 404 when the station has no
+  # screen configured: there is no glass to render for.
   def station
+    return head :not_found unless Station.screen
+
     load_station
     render layout: false
   end
@@ -59,6 +67,8 @@ class CollageController < ApplicationController
   # /station/preview — the same screen wrapped in the timber frame + a CSS/SVG e-ink
   # emulation, so a desktop browser previews what reads on the physical panel.
   def station_preview
+    return head :not_found unless Station.screen
+
     load_station
     render layout: false
   end
