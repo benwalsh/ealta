@@ -4,7 +4,7 @@ require 'uri'
 module Enrichment
   # The fetch tool Stage 1 (Claude, via Bedrock tool-use) calls to source from trusted hosts —
   # the ONLY path the enrichment pass takes to the network. It:
-  #   - refuses any host off the station's trusted allowlist (sources/allowlist.yml) — returns
+  #   - refuses any host off the station’s trusted allowlist (sources.yml) — returns
   #     an error, makes no request;
   #   - routes a trusted URL a bespoke adapter claims (e.g. dúchas) to that adapter, else
   #     fetches and Nokogiri-strips the page itself;

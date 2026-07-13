@@ -12,7 +12,7 @@ RSpec.describe Prompts do
 
     it 'falls back to the example when the active profile ships no prompts of its own' do
       with_station_profile(StationProfileHelpers::SAMPLE_PROFILE) do
-        # the sample profile has no prompts/ dir, so this must resolve from stations/example
+        # the sample profile has no prompts/ dir, so this must resolve from the engine defaults
         expect(described_class.get('enrichment.system')).to include('%<place>s')
       end
     end

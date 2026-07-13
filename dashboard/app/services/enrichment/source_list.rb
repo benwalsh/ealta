@@ -1,15 +1,18 @@
 module Enrichment
   # The station's source allowlist and folklore/regional preferences, read from the profile's
-  # sources/allowlist.yml (profile → example). This is the ONE place a station declares which
-  # hosts its enrichment researcher may fetch and which bespoke adapters to enable — a downstream
-  # station adds a source by editing this file, not the fetcher and a prompt. `prefer_note` is
-  # the prose the enrichment prompt injects to tell the model which sources to favour.
+  # sources.yml (profile → example). This is the ONE place a station declares which hosts its
+  # enrichment researcher may fetch and which bespoke adapters to enable — a downstream station
+  # adds a source by editing this file, not the fetcher and a prompt. `prefer_note` is the
+  # prose the enrichment prompt injects to tell the model which sources to favour.
   class SourceList
     attr_reader :adapters, :prefer_note
 
     class << self
       def current
-        new(StationProfile.yaml('sources/allowlist.yml'))
+        config = StationProfile.yaml('sources.yml')
+        # Legacy location (pre-rationalisation profiles) — remove once every station has moved.
+        config = StationProfile.yaml('sources/allowlist.yml') unless config.is_a?(Hash) && config.any?
+        new(config)
       end
     end
 
