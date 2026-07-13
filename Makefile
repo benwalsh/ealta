@@ -13,7 +13,7 @@ help:  ## list the available tasks
 
 setup:  ## install all deps (Python, Ruby, JS) and prepare the database
 	uv sync
-	cd dashboard && bundle install && bun install && bin/rails stimulus:manifest:update && bin/vite build && bin/rails db:prepare
+	cd dashboard && bundle install && bun install && bin/rails stimulus:manifest:update && bunx prettier --write app/javascript/controllers/index.js --log-level silent && bin/vite build && bin/rails db:prepare
 
 new-station:  ## scaffold your own station profile:  make new-station NAME=yourplace
 	@test -n "$(NAME)" || { echo "usage: make new-station NAME=yourplace"; exit 1; }
@@ -85,7 +85,7 @@ purge:  ## clear all detections (reset the collage to empty)
 	cd dashboard && bin/rails runner 'puts "cleared #{Detection.delete_all} detections"'
 
 build:  ## register Stimulus controllers + build the Vite bundle (JS + React SPA)
-	cd dashboard && bin/rails stimulus:manifest:update && bin/vite build
+	cd dashboard && bin/rails stimulus:manifest:update && bunx prettier --write app/javascript/controllers/index.js --log-level silent && bin/vite build
 
 doctor:  ## verify the Python<->Rails<->datastore seams + Irish locale (bring-up check)
 	cd dashboard && bin/rails ealta:doctor
