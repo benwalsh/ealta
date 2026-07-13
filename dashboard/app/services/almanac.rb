@@ -135,7 +135,8 @@ class Almanac
       coords = resolve_coords
       prev = current(now: now)
       forecast = fetch_forecast(coords)
-      tide = fetch_tide_extrema(coords, now)
+      # An inland station (tides: none) never hits the tide service at all.
+      tide = tide_config == :none ? nil : fetch_tide_extrema(coords, now)
       data = {
         coords:       coords,
         weather:      forecast[:weather] || prev[:weather],
@@ -191,10 +192,12 @@ class Almanac
 
     # The next predicted turning point strictly after `now`, from a list of extrema
     # ([{ t: iso8601, type: 'high'|'low' }]) — the Marine Institute's high/low waters.
-    # `station` (a { en:, ga: } hash) names the port. Nil when nothing is upcoming.
-    def next_tide(extrema, now, station = nil)
+    # `station` (a { en:, ga: } hash) names the port. `offset_minutes` shifts every
+    # prediction (a local spot whose tide lags/leads the port). Nil when nothing is upcoming.
+    def next_tide(extrema, now, station = nil, offset_minutes: 0)
       upcoming = Array(extrema).
                  filter_map { |e| [safe_time(e[:t]), e[:type]] if e[:t] && e[:type] }.
+                 map { |time, type| [time && (time + (offset_minutes * 60)), type] }.
                  select { |time, _| time && time > now }.
                  min_by(&:first)
       return nil unless upcoming
@@ -203,13 +206,40 @@ class Almanac
     end
 
     # The next tide derived live from the cached predictions (no network) — recomputed on
-    # every read so it always names the genuine upcoming water. Falls back to any legacy
-    # single-tide value in an older cache, else nil.
+    # every read so it always names the genuine upcoming water, honouring the station.yml
+    # `tides:` setting (none | default | offset + a local name) at READ time, so a config
+    # change shows without a refetch. Falls back to any legacy single-tide value, else nil.
     def live_tide(data, now = Time.current)
+      config = tide_config
+      return nil if config == :none
+
       extrema = data[:tide_extrema]
       return data[:tide] unless extrema.is_a?(Array) && extrema.any?
 
-      next_tide(extrema, now, data[:tide_station])
+      if config.is_a?(Hash)
+        next_tide(extrema, now, config[:name] || data[:tide_station], offset_minutes: config[:offset_minutes])
+      else
+        next_tide(extrema, now, data[:tide_station])
+      end
+    end
+
+    # station.yml `tides:` → :none (inland, no tide anywhere), :default (nearest Marine
+    # Institute station, as shipped), or { offset_minutes:, name: {en:, ga:} } — the local
+    # spot's lag/lead on the nearest station and what to call it.
+    #   tides: none            |  tides: default (or unset)
+    #   tides:
+    #     offset: 25m          # or -15m — minutes relative to the nearest station
+    #     i18n: { en: Back beach, ga: Trá beag }
+    def tide_config
+      raw = Station.setting('tides')
+      case raw
+      when Hash
+        i18n = raw['i18n'] || {}
+        { offset_minutes: parse_offset_minutes(raw['offset']),
+          name:           i18n['en'].presence && { en: i18n['en'], ga: i18n['ga'].presence || i18n['en'] } }
+      when /\A:?none\z/ then :none # tolerate YAML `none` and `:none` alike
+      else :default
+      end
     end
 
     # The nearest tidal port to a position — flat-earth distance with longitude scaled
@@ -229,6 +259,11 @@ class Almanac
     end
 
     private
+
+    # "25m" / "-15m" / "25" / 25 → minutes as an Integer (0 when unset/unparseable).
+    def parse_offset_minutes(raw)
+      raw.to_s[/-?\d+/].to_i
+    end
 
     # Kick one background refresh when the cache is missing or stale. Throttled: never
     # while one is in flight, never within RETRY_AFTER of the last attempt, and never in

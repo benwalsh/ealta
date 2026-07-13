@@ -48,6 +48,39 @@ RSpec.describe Almanac do
     it 'is nil when nothing is upcoming' do
       expect(described_class.next_tide(extrema, Time.zone.parse('2026-07-08T00:00'))).to be_nil
     end
+
+    it 'shifts every prediction by offset_minutes (a local spot lagging its port)' do
+      tide = described_class.next_tide(extrema, Time.zone.parse('2026-07-07T08:00'),
+                                       { en: 'Back beach', ga: 'Trá beag' }, offset_minutes: 25)
+      expect(tide).to include(type: 'low', time: '11:25', label: 'Low tide 11:25 · Back beach',
+                              label_ga: 'Lag trá 11:25 · Trá beag')
+    end
+  end
+
+  describe '.live_tide honouring station.yml tides:' do
+    let(:data) do
+      { tide_extrema: [{ t: '2026-07-07T10:00:00Z', type: 'low' }],
+        tide_station: { en: 'Galway', ga: 'Gaillimh' } }
+    end
+    let(:now) { Time.zone.parse('2026-07-07T08:00') }
+
+    it 'tides: none → no tide, even with cached predictions' do
+      allow(Station).to receive(:setting).with('tides').and_return('none')
+      expect(described_class.live_tide(data, now)).to be_nil
+    end
+
+    it 'tides: default (or unset) → the nearest station, unshifted' do
+      allow(Station).to receive(:setting).with('tides').and_return(nil)
+      expect(described_class.live_tide(data, now)).to include(time: '11:00', station: 'Galway')
+    end
+
+    it 'tides: offset + i18n → shifted time under the local name' do
+      allow(Station).to receive(:setting).with('tides').
+        and_return({ 'offset' => '25m', 'i18n' => { 'en' => 'Back beach', 'ga' => 'Trá beag' } })
+      tide = described_class.live_tide(data, now)
+      expect(tide).to include(time: '11:25', label: 'Low tide 11:25 · Back beach',
+                              label_ga: 'Lag trá 11:25 · Trá beag')
+    end
   end
 
   describe '.nearest_tide_station' do
