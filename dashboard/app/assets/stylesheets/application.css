@@ -422,6 +422,7 @@ body:has(.acct) { overflow-y: auto; overflow-x: hidden; height: auto; min-height
 .acct-rule-label, .acct-name { flex: 1; }
 .acct-ga { color: var(--ink-soft); font-style: italic; }
 .acct-empty { color: var(--ink-soft); }
+.acct-note { color: var(--ink-soft); font-size: 14px; margin: -6px 0 10px; }
 .acct-add { display: flex; gap: 8px; margin-top: 16px; }
 .acct-select {
   flex: 1;
