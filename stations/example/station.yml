@@ -37,6 +37,10 @@ brand:
 languages: [en]
 default_language: en
 
+# The station's clock (an IANA zone name) — every day boundary follows it: the
+# Journal's frozen days, the daily letter's send time, "today" on the panel.
+# timezone: Europe/Dublin
+
 # Admin identities (comma-friendly list). Also settable via ADMIN_EMAILS in .env.
 admin_emails: []
 
