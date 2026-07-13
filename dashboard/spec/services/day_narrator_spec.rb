@@ -30,11 +30,11 @@ RSpec.describe DayNarrator do
 
     it 'appends the stored bird-lore as an "About the birds" section' do
       lore = [{ common_name: 'House Sparrow', irish_name: 'Gealbhan binne',
-                blocks: [{ type: 'folklore', text: 'Old lore tied the sparrow to the hearth.' }] }]
+                blocks: [{ type: 'fact', text: 'Nests under the eaves of houses.' }] }]
       msg = described_class.user_message(facts, lore)
       expect(msg).to include('About the birds')
       expect(msg).to include('House Sparrow (Gealbhan binne):')
-      expect(msg).to include('[folklore] Old lore tied the sparrow to the hearth.')
+      expect(msg).to include('[fact] Nests under the eaves of houses.')
     end
   end
 
@@ -54,6 +54,17 @@ RSpec.describe DayNarrator do
 
     it 'is empty when no prominent species has a stored bundle' do
       expect(described_class.send(:enrichment_for, facts)).to eq([])
+    end
+
+    it 'withholds folklore from the model material — it renders as a set-apart quote instead' do
+      EnrichmentBundle.create!(
+        sci_name: 'Passer domesticus', date: '2026-07-01',
+        blocks: [{ 'type' => 'folklore', 'id' => 'hearth', 'gated' => true,
+                   'text' => 'Old lore tied the sparrow to the hearth.',
+                   'sources' => [{ 'host' => 'duchas.ie', 'url' => 'https://duchas.ie/story/2' }] }]
+      )
+      lore = described_class.send(:enrichment_for, facts)
+      expect(lore.find { |b| b[:common_name] == 'House Sparrow' }).to be_nil
     end
   end
 

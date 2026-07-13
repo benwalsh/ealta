@@ -150,7 +150,13 @@ class DayNarrator
         display = bundles[item[:sci_name]]&.to_display
         next unless display
 
-        { common_name: item[:common_name], irish_name: item[:irish_name], blocks: display[:blocks] }
+        # Folklore is deliberately withheld from the model: sourced folklore (dúchas and
+        # friends) renders as a SET-APART, attributed quote on the Journal — like the
+        # curated poems — never paraphrased into the narration's prose.
+        blocks = display[:blocks].reject { |b| b[:type] == 'folklore' }
+        next if blocks.empty?
+
+        { common_name: item[:common_name], irish_name: item[:irish_name], blocks: blocks }
       end
     end
 
@@ -205,7 +211,7 @@ class DayNarrator
       return [] if lore.blank?
 
       lines = ['About the birds (the ONLY characterising detail you may state — weave one ' \
-               'or two striking things in; [folklore] is lore, not fact):']
+               'or two striking things in):']
       lore.each do |bird|
         irish = bird[:irish_name].present? ? " (#{bird[:irish_name]})" : ''
         lines << "#{bird[:common_name]}#{irish}:"

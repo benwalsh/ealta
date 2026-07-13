@@ -5,6 +5,12 @@ module Api
   # entry itself is frozen once (JournalEntry) — figures and notable are recomputed from the
   # immutable detections on read. The stilled sparkline and the closing poem land in later phases.
   class JournalController < BaseController
+    # The day's closing quotes, each SET APART with its credit — never woven into the
+    # narration's prose. Two springs, in order: the station's curated literary lore (a
+    # poem/tale from content/bird_lore.yml, one bird), then the day's SOURCED folklore
+    # (dúchas and friends, via the enrichment bundles) for other prominent birds. Capped
+    # so the foot of the page stays a coda, not an anthology.
+    MAX_QUOTES = 2
     def show
       date = journal_date
       return render(json: unavailable) unless date
@@ -22,7 +28,7 @@ module Api
         sparkline:  day_sparkline(facts),
         day_lore:   day_lore_json(date),
         notable:    notable_json(as_of: date, days: 1),
-        lore:       closing_lore(facts),
+        quotes:     closing_quotes(facts),
         available:  available_bounds
       }
     end
@@ -64,19 +70,40 @@ module Api
       { title: bilingual(entry['title']), gloss: bilingual(entry['gloss']), kind: entry['kind'] }
     end
 
-    # A closing piece of literary lore for one of the day's birds: the most important species
-    # (else the loudest) that has a curated poem/tale. nil when none of the day's birds has one.
-    def closing_lore(facts)
+    def closing_quotes(facts)
       items = Array(facts[:items]).sort_by { |i| -i[:importance].to_i }
+      quotes = []
+      curated_quote(items, facts[:date]) { |q| quotes << q }
+      folklore_quotes(items, quotes)
+      quotes.first(MAX_QUOTES)
+    end
+
+    def curated_quote(items, date)
       items.each do |item|
-        lore = BirdLore.for(item[:sci_name], date: facts[:date])
+        lore = BirdLore.for(item[:sci_name], date: date)
         next unless lore
 
         name = BirdName.lookup(item[:sci_name])
-        return { kind: lore['kind'], text: lore['text'].to_s.strip, attribution: lore['attribution'],
-                 sci: item[:sci_name], en: name.en, ga: name.ga }
+        return yield({ kind: lore['kind'], text: lore['text'].to_s.strip, attribution: lore['attribution'],
+                       sci: item[:sci_name], en: name.en, ga: name.ga })
       end
-      nil
+    end
+
+    # Sourced folklore for birds that don't already carry a quote. The credit is the
+    # source host (dúchas.ie etc.) — quoted material always says where it came from.
+    def folklore_quotes(items, quotes)
+      items.each do |item|
+        break if quotes.size >= MAX_QUOTES
+        next if quotes.any? { |q| q[:sci] == item[:sci_name] }
+
+        block = EnrichmentBundle.current(item[:sci_name])&.block_objects&.find { |b| b.type == 'folklore' }
+        next unless block
+
+        name = BirdName.lookup(item[:sci_name])
+        quotes << { kind: 'folklore', text: block.text.to_s.strip, text_ga: block.text_ga.presence,
+                    attribution: block.sources.first&.dig(:host),
+                    sci: item[:sci_name], en: name.en, ga: name.ga }
+      end
     end
 
     def bilingual(hash)
@@ -110,7 +137,7 @@ module Api
     def unavailable
       { date: nil, date_label: { en: '', ga: '' }, figures: { species: 0, detections: 0, busiest: nil },
         summary: { en: [], ga: [] }, source: nil, sources: [], sparkline: nil, day_lore: nil,
-        notable: notable_json(days: 1), lore: nil, available: { first: nil, last: Date.yesterday.iso8601 } }
+        notable: notable_json(days: 1), quotes: [], available: { first: nil, last: Date.yesterday.iso8601 } }
     end
   end
 end
