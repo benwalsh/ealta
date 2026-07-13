@@ -112,20 +112,23 @@ class Almanac
   # OSM address keys, most-local first — the "best guess" for where we are.
   PLACE_KEYS = %w[hamlet village locality town suburb city municipality].freeze
 
-  class << self
-    def current(now: Time.current)
-      return blank unless STORE.exist?
+  # A cache older than this is due a refresh. Timers refresh every 30 min where they
+  # exist; the margin keeps a healthy timer from ever racing the self-heal below.
+  STALE_AFTER = 35.minutes
+  # After a failed self-heal attempt (offline, say), wait this long before another read
+  # tries again — so an offline box isn't spawning a doomed fetch on every page load.
+  RETRY_AFTER = 5.minutes
 
-      data = JSON.parse(STORE.read, symbolize_names: true)
-      data[:fetched_at] = safe_time(data[:fetched_at])
-      # The tide is computed FRESH on every read from the cached forecast series, so it
-      # always names the genuine NEXT turning point relative to now — never a value frozen
-      # at fetch time that goes stale (or past) as the hours pass. Pure computation, no
-      # network: the offline-first contract holds.
-      data[:tide] = live_tide(data, now)
+  class << self
+    # Reads are SELF-HEALING: where a refresh timer exists (Pi systemd, cloud recurring
+    # job) it does the work, but a dev machine has no timer, cache files get lost in
+    # moves, and schedulers can die — so a read that finds the cache missing or stale
+    # kicks ONE throttled background refresh. The offline-first contract still holds:
+    # `current` itself never touches the network and never blocks on the refresh.
+    def current(now: Time.current)
+      data = read(now)
+      auto_refresh(now, data[:fetched_at])
       data
-    rescue JSON::ParserError, SystemCallError
-      blank
     end
 
     def refresh(now: Time.current)
@@ -145,6 +148,22 @@ class Almanac
       }
       write(data)
       current(now: now)
+    end
+
+    # The raw cache read (no self-heal) — everything `current` used to be.
+    def read(now)
+      return blank unless STORE.exist?
+
+      data = JSON.parse(STORE.read, symbolize_names: true)
+      data[:fetched_at] = safe_time(data[:fetched_at])
+      # The tide is computed FRESH on every read from the cached forecast series, so it
+      # always names the genuine NEXT turning point relative to now — never a value frozen
+      # at fetch time that goes stale (or past) as the hours pass. Pure computation, no
+      # network: the offline-first contract holds.
+      data[:tide] = live_tide(data, now)
+      data
+    rescue JSON::ParserError, SystemCallError
+      blank
     end
 
     # --- Pure helpers (no network; unit-tested) --------------------------------
@@ -210,6 +229,27 @@ class Almanac
     end
 
     private
+
+    # Kick one background refresh when the cache is missing or stale. Throttled: never
+    # while one is in flight, never within RETRY_AFTER of the last attempt, and never in
+    # tests (specs must not dial out). Failures just leave the last-good cache — the next
+    # eligible read retries.
+    def auto_refresh(now, fetched_at)
+      return if Rails.env.test?
+      return if fetched_at && fetched_at > now - STALE_AFTER
+      return if @refreshing
+      return if @last_attempt_at && @last_attempt_at > now - RETRY_AFTER
+
+      @refreshing = true
+      @last_attempt_at = now
+      Thread.new do
+        refresh
+      rescue StandardError => e
+        Rails.logger.warn("Almanac: self-heal refresh failed (#{e.class}: #{e.message})")
+      ensure
+        @refreshing = false
+      end
+    end
 
     def blank
       { coords: nil, weather: nil, sun: nil, tide: nil, tide_extrema: nil, tide_station: nil, fetched_at: nil }
@@ -330,6 +370,7 @@ class Almanac
     end
 
     def write(data)
+      STORE.dirname.mkpath # storage/ is runtime state — create it rather than ENOENT
       tmp = STORE.sub_ext('.tmp')
       tmp.write(JSON.pretty_generate(data))
       tmp.rename(STORE.to_s) # atomic replace so a reader never sees a half-written file

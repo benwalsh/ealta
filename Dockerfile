@@ -65,6 +65,14 @@ ENV RAILS_ENV=cloud \
 COPY --from=build /usr/local/bundle /usr/local/bundle
 COPY --from=build --chown=app:app /app /app
 
+# storage/ MUST be a real writable directory: it holds the runtime caches
+# (almanac.json, today_summary.json). A build from a working tree where storage
+# was a symlink (an old durable-data trick) ships a dangling link and every cache
+# write dies with ENOENT — so normalise it unconditionally here.
+RUN rm -rf /app/dashboard/storage \
+ && mkdir -p /app/dashboard/storage \
+ && chown app:app /app/dashboard/storage
+
 USER app
 WORKDIR /app/dashboard
 EXPOSE 3000
