@@ -84,6 +84,7 @@ class TodaySummary
     def store(result, facts)
       data = { bullets: result[:bullets], source: result[:source], sources: result[:sources],
                facts_date: facts[:date], generated_at: Time.current.iso8601 }
+      STORE.dirname.mkpath # storage/ is runtime state — create it rather than ENOENT
       tmp = STORE.sub_ext('.tmp')
       tmp.write(JSON.pretty_generate(data))
       tmp.rename(STORE.to_s) # atomic replace so a reader never sees a half-written file
