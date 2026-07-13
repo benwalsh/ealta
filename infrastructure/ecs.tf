@@ -8,6 +8,11 @@ resource "aws_ecs_cluster" "main" {
   name = var.station_name
 }
 
+# KNOWN WARNING (harmless): the module's own `current_deployment` output reads an
+# attribute the AWS provider has deprecated, so every plan prints a deprecation
+# warning. Unfixed upstream as of module 7.5.0. Safe to ignore: the removal can only
+# land in provider 7.x and versions.tf pins ~> 6.x. When upstream drops that output,
+# bump the module version here and the warning goes with it.
 module "express_service" {
   source  = "terraform-aws-modules/ecs/aws//modules/express-service"
   version = "~> 7.4"
