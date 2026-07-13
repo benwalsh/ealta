@@ -19,11 +19,11 @@ application.register('dropdown', DropdownController)
 import HelloController from './hello_controller'
 application.register('hello', HelloController)
 
-import LangController from './lang_controller'
-application.register('lang', LangController)
-
 import KioskController from './kiosk_controller'
 application.register('kiosk', KioskController)
+
+import LangController from './lang_controller'
+application.register('lang', LangController)
 
 import ModalController from './modal_controller'
 application.register('modal', ModalController)
