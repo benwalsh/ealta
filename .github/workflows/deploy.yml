@@ -60,12 +60,17 @@ jobs:
       # Force a new deployment rather than re-declaring the service: Terraform stays the
       # single owner of the service SHAPE (image tag, env, secrets, scaling); CI only
       # triggers a re-pull of :latest. --force-new-deployment can't clobber config.
+      #
+      # Fire-and-forget, like `kubectl apply`: CI's job ends when the new rollout is
+      # submitted — convergence is ECS's job. (An ECS Express rollout drains the old task
+      # through the ALB and routinely takes 10–15 min, which made a CI waiter time out
+      # with a false ✗ on deploys that then completed fine.)
       - name: Roll ECS Express onto the new image
         run: |
           set -euo pipefail
           echo "Rolling ${{ vars.STATION_NAME }} onto ${{ vars.ECR_REPO }}:${GITHUB_SHA} (via :latest)"
           aws ecs update-service --cluster "${{ vars.STATION_NAME }}" --service "${{ vars.STATION_NAME }}" \
             --force-new-deployment >/dev/null
-          echo "Waiting for the deployment to reach steady state…"
-          aws ecs wait services-stable --cluster "${{ vars.STATION_NAME }}" --services "${{ vars.STATION_NAME }}"
-          echo "Deployed: ${{ vars.ECR_REPO }}:${GITHUB_SHA}"
+          echo "Rollout submitted. Watch it converge with:"
+          echo "  aws ecs describe-services --cluster ${{ vars.STATION_NAME }} --services ${{ vars.STATION_NAME }} \\"
+          echo "    --query 'services[0].deployments[0].rolloutState'"
