@@ -8,9 +8,25 @@ class DailyLetter
     def deliver_all(date: Date.yesterday)
       return 0 unless Notifier.enabled?
 
+      hero = hero_bird(date)
       sent = 0
-      candidates.find_each { |user| sent += 1 if new(user, date).deliver }
+      candidates.find_each { |user| sent += 1 if new(user, date, hero).deliver }
       sent
+    end
+
+    # The day's most notable bird — the letter's picture. Importance-first (an arrival or
+    # rarity beats the loudest sparrow), and only a bird the station has art for (the
+    # masks table is the truth of that); nil when the day offers neither.
+    def hero_bird(date)
+      items = Array(DailyFacts.for(date: date, now: date.end_of_day)[:items])
+      items.sort_by { |i| -i[:importance].to_i }.each do |item|
+        slug = item[:sci_name].downcase.tr(' ', '-')
+        next unless BirdMask.for(slug)
+
+        return { sci: item[:sci_name], slug: slug,
+                 en: item[:common_name], ga: item[:irish_name].presence }
+      end
+      nil
     end
 
     private
@@ -21,9 +37,10 @@ class DailyLetter
     end
   end
 
-  def initialize(user, date)
+  def initialize(user, date, hero = nil)
     @user = user
     @date = date
+    @hero = hero
   end
 
   # Returns true only when an email actually went out.
@@ -38,6 +55,6 @@ class DailyLetter
     # outage left for a later view to retry) — not worth a letter.
     return false unless entry&.persisted?
 
-    Notifier.deliver_letter(user: @user, date: @date, entry: entry)
+    Notifier.deliver_letter(user: @user, date: @date, entry: entry, hero: @hero)
   end
 end

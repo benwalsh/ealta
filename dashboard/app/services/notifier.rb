@@ -45,7 +45,7 @@ class Notifier
     # The Daily Letter — the completed day's frozen Journal entry, verbatim: the letter
     # and the Journal page are the same words. SES *simple* content, same fail-soft
     # contract as deliver.
-    def deliver_letter(user:, date:, entry:)
+    def deliver_letter(user:, date:, entry:, hero: nil)
       return true unless enabled?
 
       client.send_email(
@@ -53,7 +53,8 @@ class Notifier
         destination:        { to_addresses: [user.email] },
         content:            { simple: {
           subject: { data: "#{Station.site_name} — #{I18n.l(date, format: :long)}" },
-          body:    { html: { data: letter_html(entry, date) }, text: { data: letter_text(entry, date) } }
+          body:    { html: { data: letter_html(entry, date, hero) },
+                     text: { data: letter_text(entry, date, hero) } }
         } }
       )
       true
@@ -84,8 +85,15 @@ class Notifier
       [primary, secondary]
     end
 
-    def letter_html(entry, date)
+    def letter_html(entry, date, hero = nil)
       primary, secondary = letter_bullets(entry)
+      # The day's most notable bird, full-bleed at the top — the same illustration the
+      # site shows (/birds redirects to the CDN when the art lives there).
+      banner = if hero
+                 caption = [hero[:en], hero[:ga]].compact.join(' · ')
+                 %(<img src="#{site_url}/birds/#{hero[:slug]}.png" alt="#{h(caption)}" width="520"
+                        style="display:block;width:100%;height:auto;background:#f2f2f3;">)
+               end
       paras = primary.map do |b|
         %(<p style="font-size:16px;line-height:1.55;margin:0 0 12px;">#{h(b)}</p>)
       end.join
@@ -95,22 +103,27 @@ class Notifier
       sources = entry.sources.filter_map { |src| src['host'] }.uniq.join(' · ')
       <<-HTML
         <div style="margin:0;padding:24px;background:#f2f2f3;font-family:Georgia,'Times New Roman',serif;color:#17171a;">
-          <div style="max-width:520px;margin:0 auto;background:#fff;border:1px solid #e4e4e7;border-radius:10px;padding:24px 28px;">
+          <div style="max-width:520px;margin:0 auto;background:#fff;border:1px solid #e4e4e7;border-radius:10px;overflow:hidden;">
+            #{banner}
+            <div style="padding:24px 28px;">
             <div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#8b8b91;">#{h(Station.site_name)} · #{h(I18n.l(date, format: :long))}</div>
+            #{%(<div style="font-size:13px;color:#8b8b91;margin-top:4px;">#{h([hero[:en], hero[:ga]].compact.join(' · '))}</div>) if hero}
             <div style="font-size:24px;margin:6px 0 14px;">The day's journal</div>
             #{paras}
             #{%(<div style="border-top:1px solid #e4e4e7;margin:14px 0;padding-top:12px;">#{gloss}</div>) if gloss.present?}
             #{%(<div style="font-size:12px;color:#8b8b91;margin-top:10px;">Sources: #{h(sources)}</div>) if sources.present?}
             <a href="#{site_url}" style="display:inline-block;margin-top:20px;background:#17171a;color:#fff;text-decoration:none;font-family:Helvetica,Arial,sans-serif;font-size:14px;padding:11px 20px;border-radius:6px;">Read the journal</a>
             <div style="margin-top:16px;font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#8b8b91;">Manage your letter at <a href="#{site_url}/account" style="color:#8b8b91;">your account</a>.</div>
+            </div>
           </div>
         </div>
       HTML
     end
 
-    def letter_text(entry, date)
+    def letter_text(entry, date, hero = nil)
       primary, secondary = letter_bullets(entry)
       body = [primary.join("\n\n"), Array(secondary).join("\n\n").presence].compact.join("\n\n---\n\n")
+      body = "The day's bird: #{[hero[:en], hero[:ga]].compact.join(' · ')}\n\n#{body}" if hero
       sources = entry.sources.filter_map { |src| src['host'] }.uniq.join(', ')
       "The day's journal — #{I18n.l(date, format: :long)}\n\n#{body}\n\n" \
         "#{"Sources: #{sources}\n" if sources.present?}Read the journal: #{site_url}\nManage: #{site_url}/account"

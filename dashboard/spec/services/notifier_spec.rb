@@ -59,6 +59,20 @@ RSpec.describe Notifier do
         expect(described_class.deliver_letter(user: create(:user), date: date, entry: entry)).to be(true)
       end
 
+      it "embeds the day's notable bird as the letter's picture" do
+        hero = { sci: 'Crex crex', slug: 'crex-crex', en: 'Corncrake', ga: 'Traonach' }
+        fake = double('ses') # rubocop:disable RSpec/VerifiedDoubles
+        allow(described_class).to receive(:client).and_return(fake)
+        expect(fake).to receive(:send_email) do |args|
+          html = args.dig(:content, :simple, :body, :html, :data)
+          expect(html).to include('/birds/crex-crex.png')
+          expect(html).to include('Corncrake · Traonach')
+          text = args.dig(:content, :simple, :body, :text, :data)
+          expect(text).to include("The day's bird: Corncrake · Traonach")
+        end
+        described_class.deliver_letter(user: create(:user), date: date, entry: entry, hero: hero)
+      end
+
       it 'leads with Irish for an Irish-first station' do
         allow(Station).to receive_messages(default_language: :ga, multilingual?: true, languages: %i[ga en])
         fake = double('ses') # rubocop:disable RSpec/VerifiedDoubles
