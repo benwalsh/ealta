@@ -6,7 +6,7 @@ SHELL := /bin/bash
 PORT ?= 4030
 POSES ?= 1
 
-.PHONY: help setup new-station serve listen analyze regen restyle cutout declutter masks build doctor armcheck test lint
+.PHONY: help setup new-station serve dev listen analyze regen restyle cutout declutter masks build doctor armcheck test lint
 
 help:  ## list the available tasks
 	@grep -hE '^[a-z][a-zA-Z-]*:.*##' $(MAKEFILE_LIST) | sed -E 's/:.*## / — /' | sort
@@ -24,6 +24,11 @@ new-station:  ## scaffold your own station profile:  make new-station NAME=yourp
 serve:  ## run the collage web app  (override with: make serve PORT=4030)
 	set -a; source .env; set +a; \
 	cd dashboard && bin/rails server -p $(PORT)
+
+# bin/dev already sources the root .env and runs foreman; the extra -f wins over its
+# default Procfile.dev (optparse keeps the last flag), adding the listener process.
+dev:  ## the whole station, one command: web app + vite + mic listener (Ctrl-C stops all)
+	cd dashboard && bin/dev -f Procfile.full
 
 # NB: lines are joined with `\` so `source .env` and the command share one shell.
 # macOS ships GNU Make 3.81, which ignores .ONESHELL, so each bare line would

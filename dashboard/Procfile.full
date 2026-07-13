@@ -1,0 +1,6 @@
+# The whole station in one command (make dev): web app + Vite dev server + mic listener.
+# Ctrl-C stops all three. Procfile.dev remains the frontend-only pair when the mic
+# isn't wanted. ASCII only: foreman parses this file with the default encoding.
+web: env RUBY_DEBUG_OPEN=true bin/rails server
+vite: bin/vite dev
+listen: cd .. && uv run python birdnet/listen.py listen
