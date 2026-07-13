@@ -93,6 +93,15 @@ resource "aws_cloudfront_distribution" "main" {
       origin_protocol_policy = "https-only"
       origin_ssl_protocols   = ["TLSv1.2"]
     }
+    # The Host header must stay the origin's (the shared ALB routes on it), so Rails
+    # would otherwise see itself as *.on.aws — and reject sign-in POSTs with a 422: the
+    # browser's Origin (the public domain) fails the CSRF same-origin check against that
+    # base_url. Hand Rails its public identity the standard proxy way; cloud.rb allows
+    # the host, and Rack derives base_url from X-Forwarded-Host.
+    custom_header {
+      name  = "X-Forwarded-Host"
+      value = var.domain_name
+    }
   }
 
   default_cache_behavior {

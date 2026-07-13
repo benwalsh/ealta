@@ -11,6 +11,15 @@ Rails.application.configure do
   config.assume_ssl = true
   config.force_ssl = true
 
+  # CloudFront can't forward the viewer's Host (the shared ALB routes on the origin
+  # host), so it adds X-Forwarded-Host = the public domain instead (infrastructure/
+  # cdn.tf). Rack derives base_url from that header — which is what makes browser
+  # sign-in POSTs pass the CSRF same-origin check (Origin == base_url) instead of
+  # 422ing. Host authorization must therefore allow the public host alongside the
+  # origin host the ALB health checks arrive on; SITE_URL carries the public domain.
+  config.hosts << URI(ENV['SITE_URL']).host if ENV['SITE_URL'].present?
+  config.hosts << /.*\.on\.aws/ # the ECS Express origin endpoint (health checks, direct hits)
+
   # First cut: the container serves its own static assets (digested JS/CSS under
   # /assets, the Vite bundle under /vite, the bird PNGs under /birds) and
   # CloudFront caches them in front. Later optimisation to slim the image —
