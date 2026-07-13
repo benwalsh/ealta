@@ -2,12 +2,13 @@
 # config/recurring.yml). Two halves, in order:
 #   1. Enrichment::Builder.run — source the day's DUE enrichment (Claude), the
 #      importance backoff deciding which birds are worth a fresh lookup.
-#   2. DailyDigest.deliver_all — assemble each subscriber's letter (Nova) and send it
-#      (SES).
-# Both halves are idempotent: enrichment reuses still-fresh bundles rather than
-# re-sourcing, and DailyDigest skips any user already sent for the day (last_digest_on).
-# So a retry — or a second run in the same day — is safe. Defaults to yesterday, the
-# last complete day of detections.
+#   2. DailyLetter.deliver_all — mail the frozen Journal entry to every letter
+#      subscriber (SES).
+# All idempotent: enrichment reuses still-fresh bundles rather than re-sourcing, the
+# freeze is find-or-create, and DailyLetter skips any user already sent for the day
+# (last_digest_on). So a retry — or a second run in the same day — is safe. Runs just
+# after midnight station time (config/recurring.yml), so `yesterday` is the day that
+# closed minutes ago.
 class DailyEmailSweep < ApplicationJob
   queue_as :default
 
@@ -15,7 +16,7 @@ class DailyEmailSweep < ApplicationJob
     date = Date.parse(date) if date.is_a?(String)
     Enrichment::Builder.run(date: date)
     freeze_journal(date)
-    DailyDigest.deliver_all(date: date)
+    DailyLetter.deliver_all(date: date)
   end
 
   private

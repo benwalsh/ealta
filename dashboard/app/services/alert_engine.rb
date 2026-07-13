@@ -56,7 +56,7 @@ class AlertEngine
   end
 
   # Immediate delivery only — digest-cadence subscribers are picked up by the daily
-  # DailyDigest run instead, and 'off' never emails. An event with no immediate
+  # DailyLetter run instead, and 'off' never emails. An event with no immediate
   # recipients settles at once (nothing to send now); the digest reads it later
   # straight from the day's events, so notified_at only ever tracks immediate sends.
   def deliver_pending
