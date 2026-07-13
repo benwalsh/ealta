@@ -22,20 +22,20 @@ RSpec.describe Notifier do
     end
   end
 
-  describe '.deliver_digest' do
-    let(:facts) do
-      name = BirdName.lookup('Crex crex') # real UTF-8 Irish name (fada)
-      DigestFacts::Result.new(
-        date:    Date.new(2026, 7, 4),
-        follows: [{ sci: 'Crex crex', en: name.en, ga: name.ga, count: 2 }],
-        alerts:  [{ kind: 'rarity', sci: 'Anser anser', en: 'Greylag Goose', ga: 'Gé ghlas' }],
-        roundup: { species_today: 28, detections_today: 340, activity_note: 'typical' }
+  describe '.deliver_letter' do
+    let(:date) { Date.new(2026, 7, 4) }
+    let(:entry) do
+      JournalEntry.new(
+        date: date, source: 'facts',
+        bullets: { 'en' => ['A corncrake called twice at dusk.'],
+                   'ga' => ['Ghlaoigh traonach faoi dhó um thráthnóna.'] },
+        sources: [{ 'host' => 'en.wikipedia.org', 'url' => 'https://en.wikipedia.org/wiki/Corn_crake' }]
       )
     end
 
     it 'is a no-op returning true when disabled' do
       allow(described_class).to receive(:enabled?).and_return(false)
-      expect(described_class.deliver_digest(user: create(:user), date: Date.current, facts: facts)).to be(true)
+      expect(described_class.deliver_letter(user: create(:user), date: date, entry: entry)).to be(true)
     end
 
     # aws-sdk-sesv2 lives in the :cloud gem group and isn't loaded in test, so the SES
@@ -47,19 +47,27 @@ RSpec.describe Notifier do
         ENV.delete('ALERTS_FROM')
       end
 
-      it 'builds and sends a UTF-8 email with the narrated note (no encoding errors)' do
-        allow(DigestSummary).to receive(:for).and_return(['Your corncrake called twice this evening.'])
+      it 'sends the journal entry as a UTF-8 letter — both languages, sources, no encoding errors' do
         fake = double('ses') # rubocop:disable RSpec/VerifiedDoubles
         allow(described_class).to receive(:client).and_return(fake)
-        expect(fake).to receive(:send_email).with(hash_including(:content))
-        expect(described_class.deliver_digest(user: create(:user), date: facts.date, facts: facts)).to be(true)
+        expect(fake).to receive(:send_email) do |args|
+          text = args.dig(:content, :simple, :body, :text, :data)
+          expect(text).to include('A corncrake called twice at dusk.')
+          expect(text).to include('en.wikipedia.org')
+          expect(text.encoding).to eq(Encoding::UTF_8)
+        end
+        expect(described_class.deliver_letter(user: create(:user), date: date, entry: entry)).to be(true)
       end
 
-      it 'still sends the list email when the model note is unavailable (fallback)' do
-        allow(DigestSummary).to receive(:for).and_return(nil)
-        fake = double('ses', send_email: true) # rubocop:disable RSpec/VerifiedDoubles
+      it 'leads with Irish for an Irish-first station' do
+        allow(Station).to receive_messages(default_language: :ga, multilingual?: true, languages: %i[ga en])
+        fake = double('ses') # rubocop:disable RSpec/VerifiedDoubles
         allow(described_class).to receive(:client).and_return(fake)
-        expect(described_class.deliver_digest(user: create(:user), date: facts.date, facts: facts)).to be(true)
+        expect(fake).to receive(:send_email) do |args|
+          text = args.dig(:content, :simple, :body, :text, :data)
+          expect(text.index('Ghlaoigh traonach')).to be < text.index('A corncrake called')
+        end
+        described_class.deliver_letter(user: create(:user), date: date, entry: entry)
       end
     end
   end

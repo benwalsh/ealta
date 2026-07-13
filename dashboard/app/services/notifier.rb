@@ -42,27 +42,23 @@ class Notifier
       false
     end
 
-    # One digest email — a DigestFacts object, narrated by DigestSummary (with the
-    # mechanical list as fallback). SES *simple* content, not a template, since it's
-    # variable and part LLM-written. Same fail-soft contract as deliver.
-    def deliver_digest(user:, date:, facts:)
+    # The Daily Letter — the completed day's frozen Journal entry, verbatim: the letter
+    # and the Journal page are the same words. SES *simple* content, same fail-soft
+    # contract as deliver.
+    def deliver_letter(user:, date:, entry:)
       return true unless enabled?
 
-      # Prefer the enrichment-aware assembly (Nova over the day's cited blocks); fall
-      # back to the plain summary, then to the mechanical list — warmth degrades, the
-      # send never does.
-      note = Enrichment::Assembler.for(user: user, date: date) || DigestSummary.for(facts)
       client.send_email(
         from_email_address: ENV.fetch('ALERTS_FROM'),
         destination:        { to_addresses: [user.email] },
         content:            { simple: {
-          subject: { data: "Your station birds — #{I18n.l(date, format: :long)}" },
-          body:    { html: { data: digest_html(facts, date, note) }, text: { data: digest_text(facts, date, note) } }
+          subject: { data: "#{Station.site_name} — #{I18n.l(date, format: :long)}" },
+          body:    { html: { data: letter_html(entry, date) }, text: { data: letter_text(entry, date) } }
         } }
       )
       true
     rescue StandardError => e
-      Rails.logger.warn("[digest] send failed for #{user.email}: #{e.class} #{e.message}")
+      Rails.logger.warn("[letter] send failed for #{user.email}: #{e.class} #{e.message}")
       false
     end
 
@@ -76,50 +72,48 @@ class Notifier
       @client ||= Aws::SESV2::Client.new
     end
 
-    # Display rows: the followed birds heard (with counts), then the flagged arrivals.
-    def digest_rows(facts)
-      follows = facts.follows.map { |f| { en: f[:en], ga: f[:ga], note: "heard #{f[:count]}×" } }
-      alerts  = facts.alerts.map { |a| { en: a[:en], ga: a[:ga], note: REASON.fetch(a[:kind], '') } }
-      follows + alerts
+    # The letter's paragraphs: the journal bullets in the station's own language, with
+    # the second language beneath when the station is bilingual (Irish-first stations
+    # lead with Irish, exactly like the Journal page).
+    def letter_bullets(entry)
+      bullets = entry.bullets.deep_symbolize_keys
+      primary = Array(bullets[Station.default_language]).presence || Array(bullets[:en])
+      second = Station.multilingual? ? Station.languages[1] : nil
+      secondary = second ? Array(bullets[second]).presence : nil
+      secondary = nil if secondary == primary
+      [primary, secondary]
     end
 
-    def digest_html(facts, date, note)
-      prose = Array(note).map do |para|
-        %(<p style="font-size:16px;line-height:1.55;margin:0 0 12px;">#{h(para)}</p>)
+    def letter_html(entry, date)
+      primary, secondary = letter_bullets(entry)
+      paras = primary.map do |b|
+        %(<p style="font-size:16px;line-height:1.55;margin:0 0 12px;">#{h(b)}</p>)
       end.join
-      rows = digest_rows(facts).map do |row|
-        <<-ROW
-          <tr><td style="padding:11px 0;border-bottom:1px solid #e4e4e7;">
-            <span style="font-size:17px;color:#17171a;">#{h(row[:en])}</span>
-            <span style="font-size:14px;color:#8b8b91;font-style:italic;">&nbsp;#{h(row[:ga])}</span>
-            <span style="font-size:13px;color:#8b8b91;float:right;">#{h(row[:note])}</span>
-          </td></tr>
-        ROW
+      gloss = Array(secondary).map do |b|
+        %(<p style="font-size:14px;line-height:1.5;margin:0 0 10px;color:#8b8b91;font-style:italic;">#{h(b)}</p>)
       end.join
-      day = if facts.roundup
-              "#{facts.roundup[:species_today]} species, #{facts.roundup[:detections_today]} detections"
-            end
+      sources = entry.sources.filter_map { |src| src['host'] }.uniq.join(' · ')
       <<-HTML
         <div style="margin:0;padding:24px;background:#f2f2f3;font-family:Georgia,'Times New Roman',serif;color:#17171a;">
           <div style="max-width:520px;margin:0 auto;background:#fff;border:1px solid #e4e4e7;border-radius:10px;padding:24px 28px;">
             <div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#8b8b91;">#{h(Station.site_name)} · #{h(I18n.l(date, format: :long))}</div>
-            <div style="font-size:24px;margin:6px 0 14px;">The day's birds</div>
-            #{prose}
-            #{%(<table style="width:100%;border-collapse:collapse;margin-top:6px;">#{rows}</table>) unless rows.empty?}
-            #{%(<div style="font-size:13px;color:#8b8b91;margin-top:14px;">#{h(day)} logged today.</div>) if day}
-            <a href="#{site_url}" style="display:inline-block;margin-top:20px;background:#17171a;color:#fff;text-decoration:none;font-family:Helvetica,Arial,sans-serif;font-size:14px;padding:11px 20px;border-radius:6px;">See the collage</a>
-            <div style="margin-top:16px;font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#8b8b91;">Manage how you're told at <a href="#{site_url}/account" style="color:#8b8b91;">your account</a>.</div>
+            <div style="font-size:24px;margin:6px 0 14px;">The day's journal</div>
+            #{paras}
+            #{%(<div style="border-top:1px solid #e4e4e7;margin:14px 0;padding-top:12px;">#{gloss}</div>) if gloss.present?}
+            #{%(<div style="font-size:12px;color:#8b8b91;margin-top:10px;">Sources: #{h(sources)}</div>) if sources.present?}
+            <a href="#{site_url}" style="display:inline-block;margin-top:20px;background:#17171a;color:#fff;text-decoration:none;font-family:Helvetica,Arial,sans-serif;font-size:14px;padding:11px 20px;border-radius:6px;">Read the journal</a>
+            <div style="margin-top:16px;font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#8b8b91;">Manage your letter at <a href="#{site_url}/account" style="color:#8b8b91;">your account</a>.</div>
           </div>
         </div>
       HTML
     end
 
-    def digest_text(facts, date, note)
-      prose = Array(note).join("\n\n")
-      rows = digest_rows(facts).map { |row| "- #{row[:en]} (#{row[:ga]}) — #{row[:note]}" }.join("\n")
-      body = [prose.presence, rows.presence].compact.join("\n\n")
-      "The day's birds — #{I18n.l(date, format: :long)}\n\n#{body}\n\n" \
-        "See the collage: #{site_url}\nManage: #{site_url}/account"
+    def letter_text(entry, date)
+      primary, secondary = letter_bullets(entry)
+      body = [primary.join("\n\n"), Array(secondary).join("\n\n").presence].compact.join("\n\n---\n\n")
+      sources = entry.sources.filter_map { |src| src['host'] }.uniq.join(', ')
+      "The day's journal — #{I18n.l(date, format: :long)}\n\n#{body}\n\n" \
+        "#{"Sources: #{sources}\n" if sources.present?}Read the journal: #{site_url}\nManage: #{site_url}/account"
     end
 
     def h(text)

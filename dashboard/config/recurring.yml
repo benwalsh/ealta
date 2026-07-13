@@ -1,11 +1,13 @@
 # Solid Queue recurring tasks, per environment. Only the cloud runs the sweep — the
-# Pi never sends mail. Schedule is fugit/cron in the process timezone (UTC in the
-# container), so 06:00 here is early morning in Ireland: a digest of the previous
-# complete day, which is exactly what DailyEmailSweep defaults to (yesterday).
+# Pi never sends mail. This file is ERB'd, so schedules can carry the station's
+# configured timezone (station.yml `timezone:` → config.time_zone).
 cloud:
   daily_email_sweep:
     class: DailyEmailSweep
-    schedule: "every day at 6am"
+    # Just after midnight STATION time: the day has closed, so enrichment sources it,
+    # the Journal freezes it, and the daily letter goes out. The zone rides inside the
+    # schedule string (fugit supports it); ERB pulls it from station.yml's timezone.
+    schedule: "every day at 00:15 <%= Rails.application.config.time_zone %>"
   # Weather + tide into storage/almanac.json. On the Pi this is a systemd timer
   # (deploy/ealta-almanac.timer); the cloud has no systemd, so it runs here. Without it the
   # cloud almanac row is blank (only the moon, which is pure calc). Best-effort — a failed
