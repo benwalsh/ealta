@@ -22,21 +22,11 @@
 
   %section.acct-sec
     %h2.acct-h2= bi("The daily letter", "An litir laethúil")
+    %p.acct-note= bi("The day's journal, by email, just after midnight.", "Dialann an lae, ar ríomhphost, díreach tar éis meán oíche.")
     %ul.acct-rules
       %li.acct-rule
-        %span.acct-rule-label= bi("Daily roundup", "Achoimre laethúil")
+        %span.acct-rule-label= bi("Daily letter", "Litir laethúil")
         = render "cadence", alert_type: "roundup", current: (@roundup ? "digest" : "off")
-      %li.acct-rule
-        %span.acct-rule-label= bi("Birds you follow", "Éin a leanann tú")
-        = render "cadence", alert_type: "species", current: @follow_cadence
-
-  %section.acct-sec
-    %h2.acct-h2= bi("Breaking news", "Scéala tapa")
-    %ul.acct-rules
-      %li.acct-rule
-        %span.acct-rule-label= bi("Rarities & first sightings", "Neamhchoitianta & céadfheiceálacha")
-        = render "cadence", alert_type: "breaking", current: (@breaking ? "immediate" : "off"),
-          on_value: "immediate"
 
   %section.acct-sec
     %h2.acct-h2= bi("Species you're following", "Speicis a leanann tú")

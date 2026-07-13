@@ -13,9 +13,6 @@ class SubscriptionsController < ApplicationController
   def index
     subs = current_user.subscriptions.active
     @follows = subs.where(alert_type: 'species').order(:sci_name)
-    # Breaking is on when the newsworthy kinds are set to immediate delivery.
-    @breaking = subs.exists?(alert_type: BREAKING_TYPES, sci_name: nil, cadence: 'immediate')
-    @follow_cadence = @follows.first&.cadence || 'digest'
     @roundup = subs.exists?(alert_type: 'roundup')
     @species = species_options
   end
