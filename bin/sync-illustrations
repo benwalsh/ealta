@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Sync the station's bird illustrations between the local profile and the S3 bucket that
+# backs the illustrations CDN (infrastructure/illustrations.tf). The PNGs live on S3, not in
+# git or the app image; the engine serves /birds/<slug>.png from a local copy when present,
+# else redirects to the CDN.
+#
+#   bin/sync-illustrations push   # local *.png -> S3   (publish new / updated art)
+#   bin/sync-illustrations pull   # S3 -> local *.png   (dev, and the Pi at provision time)
+#
+# The bucket is flat and holds ONLY the PNGs, keyed by <slug>.png (so <cdn>/<slug>.png
+# matches the engine's redirect). masks.json and the brand mark stay in git — they're small
+# and the engine reads them straight from the profile, not via /birds.
+set -euo pipefail
+
+BUCKET="${ILLUSTRATIONS_BUCKET:-culfinbirds-illustrations}"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+DIR="$ROOT/stations/culfinbirds/illustrations"
+
+command -v aws >/dev/null || { echo "aws CLI not found — install it and configure creds" >&2; exit 1; }
+
+case "${1:-}" in
+  push)
+    [ -d "$DIR" ] || { echo "no illustrations at $DIR" >&2; exit 1; }
+    echo "push  $DIR/*.png  ->  s3://$BUCKET/"
+    aws s3 sync "$DIR" "s3://$BUCKET/" --exclude '*' --include '*.png' --size-only --no-progress
+    ;;
+  pull)
+    mkdir -p "$DIR"
+    echo "pull  s3://$BUCKET/  ->  $DIR/"
+    aws s3 sync "s3://$BUCKET/" "$DIR" --exclude '*' --include '*.png' --size-only --no-progress
+    ;;
+  *)
+    echo "usage: bin/sync-illustrations {push|pull}" >&2
+    exit 2
+    ;;
+esac
+
+echo "done: $(ls "$DIR"/*.png 2>/dev/null | wc -l | tr -d ' ') png in $DIR"
