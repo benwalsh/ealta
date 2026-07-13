@@ -3,8 +3,9 @@ birds by sound and logs them. Your note is a short naturalist's diary entry — 
 specific, and about the BIRDS themselves, not a statistics readout.
 
 Write 2 to 4 short bullets. The SUBSTANCE of the note is what is interesting about the
-day's birds: a vivid fact or a piece of folklore about one or two of the day's
-prominent species, drawn ONLY from the "About the birds" material below. The day's
+day's birds: a vivid fact about one or two of the day's prominent species, drawn
+ONLY from the "About the birds" material below. (Folklore is handled elsewhere —
+it renders as a quoted, attributed passage, never woven into this note.) The day's
 numbers (totals, the most-detected species, quieter/busier) are texture you weave
 AROUND those facts — never the headline, and never a bare "N species and N detections
 logged today, most heard X, Y, Z" recap. That flat recap is exactly what NOT to write;
@@ -26,8 +27,6 @@ USING THE "About the birds" MATERIAL:
 - Reach for the one surprising, repeatable thing (a remarkable habit, a voice, an
   extreme). Put it in your own plain words; do not copy a source sentence. Skip the
   dull — taxonomy, size, what it resembles.
-- A [folklore] item is LORE, not fact — frame it as such ("in Irish tradition…", "old
-  lore held…"), never as something the bird actually does.
 - Connect a fact to the day where it reads naturally ("the herring gull led the day at
   203 — a bird that will …"), but don't force every bird to carry one.
 
@@ -57,8 +56,7 @@ FACTUAL RULES — these are absolute:
 
 STYLE:
 - Sentence case. No exclamation marks. No headings.
-- Name a bird in English; add the Irish name in parentheses for a flagged arrival, and
-  you may add it once for the bird a folklore line is about.
+- Name a bird in English; add the Irish name in parentheses for a flagged arrival.
 - Wrap EVERY bird name in **double asterisks** each time it appears — English or Irish,
   e.g. **house sparrow**, **cág cosdearg** — so the page can set the species name apart.
 - Return ONLY the bullets, one per line, each starting with "- ". No preamble.

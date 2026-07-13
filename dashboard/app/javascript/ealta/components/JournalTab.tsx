@@ -95,22 +95,20 @@ export function JournalTab({ onSelect }: { onSelect: (sci: string) => void }) {
 
             <SourceCitations sources={data.sources} />
 
-            {data.lore && (
-              <figure className={`journal-lore is-${data.lore.kind}`}>
-                <blockquote className="journal-lore-text">{data.lore.text}</blockquote>
+            {data.quotes?.map((q) => (
+              <figure key={`${q.sci}-${q.kind}`} className={`journal-lore is-${q.kind}`}>
+                <blockquote className="journal-lore-text">
+                  {lang === 'ga' && q.text_ga ? q.text_ga : q.text}
+                </blockquote>
                 <figcaption className="journal-lore-credit">
-                  {data.lore.attribution}
-                  {' · '}
-                  <button
-                    type="button"
-                    className="journal-lore-bird"
-                    onClick={() => onSelect(data.lore!.sci)}
-                  >
-                    {lang === 'ga' && data.lore.ga ? data.lore.ga : data.lore.en}
+                  {q.attribution}
+                  {q.attribution ? ' · ' : ''}
+                  <button type="button" className="journal-lore-bird" onClick={() => onSelect(q.sci)}>
+                    {lang === 'ga' && q.ga ? q.ga : q.en}
                   </button>
                 </figcaption>
               </figure>
-            )}
+            ))}
           </article>
 
           <NotableBlock groups={data.notable} onSelect={onSelect} />

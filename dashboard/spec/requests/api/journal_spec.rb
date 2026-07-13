@@ -37,14 +37,29 @@ RSpec.describe 'API journal' do
       expect(body['lore']).to be_nil
     end
 
-    it 'closes with a curated bird poem/tale when one of the day\'s birds has one' do
+    it 'closes with the curated poem/tale as a set-apart quote when a bird has one' do
       create(:detection, Sci_Name: 'Streptopelia decaocto', Com_Name: 'Eurasian Collared-Dove',
                          Confidence: 0.9, Date: '2026-07-07')
       get '/api/journal'
-      lore = response.parsed_body['lore']
-      expect(lore).to include('kind' => 'tale', 'sci' => 'Streptopelia decaocto')
-      expect(lore['text']).to include('deca octo')
-      expect(lore['attribution']).to include('Greek folk etymology')
+      quote = response.parsed_body['quotes'].first
+      expect(quote).to include('kind' => 'tale', 'sci' => 'Streptopelia decaocto')
+      expect(quote['text']).to include('deca octo')
+      expect(quote['attribution']).to include('Greek folk etymology')
+    end
+
+    it 'sets sourced folklore apart as an attributed quote, never woven into prose' do
+      create(:detection, Sci_Name: 'Passer domesticus', Com_Name: 'House Sparrow',
+                         Confidence: 0.9, Date: '2026-07-07')
+      EnrichmentBundle.create!(
+        sci_name: 'Passer domesticus', date: '2026-07-07',
+        blocks: [{ type: 'folklore', id: 'f1', gated: true,
+                   text: 'A sparrow at the window was said to carry news of a traveller.',
+                   sources: [{ host: 'duchas.ie', url: 'https://duchas.ie/story/1' }] }]
+      )
+      get '/api/journal'
+      quote = response.parsed_body['quotes'].find { |q| q['kind'] == 'folklore' }
+      expect(quote).to include('sci' => 'Passer domesticus', 'attribution' => 'duchas.ie')
+      expect(quote['text']).to include('carry news of a traveller')
     end
 
     it 'clamps a future/out-of-range date back into the available window' do

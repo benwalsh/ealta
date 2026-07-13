@@ -197,15 +197,17 @@ export interface JournalDay {
   // The day in Irish tradition — a curated feast/quarter-day or the Celtic season.
   day_lore: { title: Bilingual; gloss: Bilingual; kind: string } | null
   notable: NotableGroups
-  // A closing piece of literary lore (a poem or tale) for one of the day's birds.
-  lore: {
-    kind: 'poem' | 'tale'
+  // The day's closing quotes, each set apart with its credit: the curated literary
+  // lore (poem/tale) and any sourced folklore (dúchas etc.) — never woven into prose.
+  quotes: {
+    kind: 'poem' | 'tale' | 'folklore'
     text: string
-    attribution: string
+    text_ga?: string | null
+    attribution: string | null
     sci: string
     en: string
     ga: string | null
-  } | null
+  }[]
   available: { first: string | null; last: string }
 }
 
