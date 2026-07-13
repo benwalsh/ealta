@@ -69,6 +69,18 @@ admin_emails: []
 #   # On a quiet day, still research this many due species (0 = notable-only).
 #   enrich_daily_floor: 1                              # (env: ENRICH_DAILY_FLOOR)
 
+# ── Tides ────────────────────────────────────────────────────────────────────
+# The almanac's tide line. Unset (or `default`) = the nearest Marine Institute
+# prediction station to BIRD_LAT/LON. `none` = no tide anywhere (an inland
+# station). Or give your local spot's lag/lead on that nearest station and what
+# to call it:
+# tides: none
+# tides:
+#   offset: 25m                 # minutes relative to the nearest station (-15m leads)
+#   i18n:
+#     en: Back beach
+#     ga: Trá beag
+
 # ── Illustrations ────────────────────────────────────────────────────────────
 # `make regen` with no GEMINI_API_KEY (in .env) draws the free default: the
 # bird's Wikipedia photo, background removed, dithered to the panel's six inks.
