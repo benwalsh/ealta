@@ -8,7 +8,7 @@ module Enrichment
     # client-side JS app that returns nothing to a server fetch, so a SEARCH goes through the
     # open JSON API instead; and a STORY page is read from its clean open-data XML transcript
     # while still cited by the human /en/ URL. Browse/index pages are left to the fetcher's
-    # generic HTML path. Enabled per station via sources/allowlist.yml (adapters: [duchas]); it
+    # generic HTML path. Enabled per station via sources.yml (adapters: [duchas]); it
     # only ever fetches through the fetcher's own allowlist-checked http_get, never its own
     # connection — so the security boundary stays in SourceFetcher.
     class Duchas

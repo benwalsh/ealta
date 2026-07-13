@@ -57,6 +57,8 @@ admin_emails: []
 # Uncommenting `llm:` (with a region or model) switches the daily note, Journal
 # and facts-&-folklore sourcing from their template/Wikipedia defaults to the
 # models below. Credentials come from the standard AWS chain — nothing here.
+# The system prompts are the engine's (dashboard/config/prompts/); to retune the
+# VOICE, drop an override in this profile's prompts/<name>.md.
 # llm:
 #   # Region the Bedrock calls run in.                    (env: BEDROCK_REGION)
 #   region: eu-west-1

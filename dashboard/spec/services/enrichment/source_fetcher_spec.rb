@@ -1,7 +1,7 @@
 require 'rails_helper'
 
 RSpec.describe Enrichment::SourceFetcher do
-  # Run against the sample profile, whose sources/allowlist.yml trusts the Irish host set and
+  # Run against the sample profile, whose sources.yml trusts the Irish host set and
   # enables the dúchas adapter — the allowlist + adapter are now station config, not constants.
   subject(:fetcher) { described_class.new(sci_name: 'Cuculus canorus', run_id: 'run-1') }
 
