@@ -57,8 +57,7 @@ def screen_config() -> dict | None:
             continue
         cfg = (yaml.safe_load(f.read_text()) or {}).get("screen")
         if isinstance(cfg, dict) and int(cfg.get("width") or 0) > 0 and int(cfg.get("height") or 0) > 0:
-            return {"name": cfg.get("name") or "e-ink screen",
-                    "width": int(cfg["width"]), "height": int(cfg["height"])}
+            return {"name": cfg.get("name") or "e-ink screen", "width": int(cfg["width"]), "height": int(cfg["height"])}
         if cfg is not None:
             return None
     return None
