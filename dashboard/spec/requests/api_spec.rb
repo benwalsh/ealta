@@ -94,6 +94,16 @@ RSpec.describe 'API' do
       expect(body['scope']).to eq('all')
       expect(body['species'].size).to be > Detection.life_list.size
     end
+
+    it 'never drops a heard bird from scope=all, even when the catalogue lacks it' do
+      # A heard species outside the illustrated catalogue (or an empty catalogue — a new
+      # profile) must still appear in "all": it is the union of life list and catalogue.
+      create(:detection, Sci_Name: 'Regulus regulus', Com_Name: 'Goldcrest')
+      allow(SpeciesCatalog).to receive(:all_sci).and_return([])
+
+      get '/api/directory', params: { scope: 'all' }
+      expect(response.parsed_body['species'].pluck('sci')).to include('Regulus regulus')
+    end
   end
 
   describe 'GET /api/species/:sci' do

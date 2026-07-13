@@ -1,9 +1,16 @@
 import { useMemo, useState } from 'react'
 import { useDirectory } from '../api'
+import { useFollow } from '../favourites'
 import { useLang } from '../lang'
 import { elapsed } from '../time'
 import { FollowButton } from './FollowButton'
 import type { Sort, Scope, Conservation } from '../types'
+
+// The UI offers one more scope than the API: "following" is the reader's own set, held
+// client-side (favourites context), so the cacheable, cookie-free /api/directory stays
+// personalisation-free — we fetch "all" underneath and narrow here. Followed-but-unheard
+// birds stay visible (greyed), which is exactly what a watchlist wants.
+type DirScope = Scope | 'following'
 
 // The species directory (Eolaí) — the illustrated guide. Each plate echoes the detail
 // card: a follow mark, the conservation status above the name, the binomial, and the
@@ -22,9 +29,10 @@ const SORTS: { id: Sort; en: string; ga: string }[] = [
   { id: 'recent', en: 'most recent', ga: 'is déanaí' },
   { id: 'alpha', en: 'a → z', ga: 'a → z' },
 ]
-const SCOPES: { id: Scope; en: string; ga: string }[] = [
+const SCOPES: { id: DirScope; en: string; ga: string }[] = [
   { id: 'heard', en: 'heard', ga: 'cloiste' },
   { id: 'all', en: 'all species', ga: 'gach speiceas' },
+  { id: 'following', en: 'following', ga: 'á leanúint' }, // shown only when signed in
 ]
 
 // Fold away fadas/case so "cag" finds "Cág" and "eabha" finds "Éabha" — a forgiving
@@ -33,9 +41,13 @@ const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCa
 
 export function DirectoryTab({ onSelect }: { onSelect: (sci: string) => void }) {
   const [sort, setSort] = useState<Sort>('count')
-  const [scope, setScope] = useState<Scope>('heard')
+  const [picked, setPicked] = useState<DirScope>('heard')
   const [query, setQuery] = useState('')
-  const { data, isLoading } = useDirectory(sort, scope)
+  const { enabled: followEnabled, following } = useFollow()
+  // Signing out with "following" picked falls back to the life list rather than wedging
+  // an option whose button has disappeared.
+  const scope: DirScope = picked === 'following' && !followEnabled ? 'heard' : picked
+  const { data, isLoading } = useDirectory(sort, scope === 'following' ? 'all' : scope)
   const { lang, t } = useLang()
 
   const primary = (en: string, ga: string | null) => (lang === 'ga' && ga ? ga : en)
@@ -53,26 +65,28 @@ export function DirectoryTab({ onSelect }: { onSelect: (sci: string) => void }) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, sort, lang])
 
-  // Narrow by name as you type — a quiet filter over the already-fetched list (EN, GA,
-  // and the binomial), fada- and case-insensitive. No endpoint, no round-trip.
+  // Narrow to the reader's watchlist, then by name as you type — quiet filters over the
+  // already-fetched list (EN, GA, and the binomial), fada- and case-insensitive. No
+  // endpoint, no round-trip; a follow toggled anywhere updates this list instantly.
   const species = useMemo(() => {
+    const base = scope === 'following' ? sorted.filter((e) => following(e.sci)) : sorted
     const q = fold(query.trim())
-    if (!q) return sorted
-    return sorted.filter(
+    if (!q) return base
+    return base.filter(
       (e) => fold(e.en).includes(q) || (e.ga && fold(e.ga).includes(q)) || fold(e.sci).includes(q),
     )
-  }, [sorted, query])
+  }, [sorted, query, scope, following])
 
   return (
     <section className="dir">
       <div className="dir-controls">
         <div className="dir-group" role="tablist" aria-label="which birds">
-          {SCOPES.map((s) => (
+          {SCOPES.filter((s) => s.id !== 'following' || followEnabled).map((s) => (
             <button
               key={s.id}
               className={`dir-opt${scope === s.id ? ' is-on' : ''}`}
               aria-current={scope === s.id ? 'true' : undefined}
-              onClick={() => setScope(s.id)}
+              onClick={() => setPicked(s.id)}
             >
               {lang === 'ga' ? s.ga : s.en}
             </button>
@@ -104,7 +118,11 @@ export function DirectoryTab({ onSelect }: { onSelect: (sci: string) => void }) 
       {isLoading || !data ? (
         <p className="dir-loading">…</p>
       ) : species.length === 0 ? (
-        <p className="dir-loading">{t('No birds match', 'Níl aon éan ann')}</p>
+        <p className="dir-loading">
+          {scope === 'following' && !query.trim()
+            ? t('Not following any birds yet — tap the mark on any plate', 'Níl aon éan á leanúint agat fós')
+            : t('No birds match', 'Níl aon éan ann')}
+        </p>
       ) : (
         <div className="dir-grid">
           {species.map((e) => {

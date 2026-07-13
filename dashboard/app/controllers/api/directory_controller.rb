@@ -19,8 +19,12 @@ module Api
       heard = Detection.life_list
       return heard unless scope == 'all'
 
+      # The UNION of the life list and the illustrated catalogue — heard birds must never
+      # drop out of "all" just because the profile's catalogue doesn't carry them (a
+      # small/new profile may have no catalogue at all, which used to make "all" come
+      # back empty while "heard" had birds).
       seen = heard.index_by(&:sci_name)
-      SpeciesCatalog.all_sci.map { |sci| seen[sci] || Detection::LifeEntry.new(sci, 0, nil, nil) }
+      heard + (SpeciesCatalog.all_sci - seen.keys).map { |sci| Detection::LifeEntry.new(sci, 0, nil, nil) }
     end
 
     # Un-heard birds sort to the bottom (alphabetical among themselves), except in
