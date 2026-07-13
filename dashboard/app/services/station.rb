@@ -98,6 +98,22 @@ class Station
       Setting.set(LANGUAGE_SETTING, value)
     end
 
+    # The station's physical e-ink screen (station.yml `screen:` — name, width, height),
+    # or nil when none is configured. Nil switches the panel surfaces OFF: /station,
+    # /panel, the emulator and the shooter all decline, because there is no glass to
+    # render for. Width/height are the station-page viewport as mounted (portrait for a
+    # rotated landscape panel). The name is informational (labels, page titles).
+    def screen
+      cfg = StationProfile.config['screen']
+      return nil unless cfg.is_a?(Hash)
+
+      width = cfg['width'].to_i
+      height = cfg['height'].to_i
+      return nil unless width.positive? && height.positive?
+
+      { name: cfg['name'].presence || 'e-ink screen', width: width, height: height }
+    end
+
     # A polite User-Agent for the station's own outbound fetches (weather, tide) — identifies
     # the app and, when a site is configured, this instance's URL as a contact. Never hard-coded.
     def user_agent

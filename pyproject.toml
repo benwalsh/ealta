@@ -24,6 +24,8 @@ dependencies = [
     "sounddevice>=0.4",
     # The frame shooter: screenshot the /panel page to push to the Inky.
     "playwright>=1.40",
+    # The shooter reads station.yml (screen: name/width/height) to size its viewport.
+    "pyyaml>=6",
     # TFLite backend for birdnetlib — Google's lightweight LiteRT runtime, with
     # wheels for both macOS arm64 and the Pi (linux aarch64) and Python 3.10-3.14.
     # birdnetlib imports `tflite_runtime`, so listen.py aliases this to it. This

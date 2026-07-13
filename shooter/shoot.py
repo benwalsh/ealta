@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""Screenshot the /station wall programme and push it to the Inky 7.3".
+"""Screenshot the /station wall programme and push it to the e-ink panel.
 
-The bridge from the Rails app to the e-ink panel. The app renders the portrait
-480x800 /station view; this screenshots the current station screen with a
-headless browser and pushes the pixels to the Inky Impression (Spectra 6).
+The bridge from the Rails app to the glass. The app renders the /station view at
+the station's OWN screen size (station.yml `screen:` — name, width, height); this
+screenshots that screen with a headless browser and pushes the pixels to the
+panel. With no `screen:` configured the station has no glass, and this exits
+quietly doing nothing. The reference driver is Pimoroni's Inky (Spectra 6); any
+panel with a Python driver can slot into push_inky's place.
 
     # On the Mac (no panel): write the Spectra-6 dither to inspect the look
     uv run python shooter/shoot.py --preview frame.png
@@ -28,8 +31,6 @@ from pathlib import Path
 
 from PIL import Image, ImageEnhance
 
-PANEL_W, PANEL_H = 480, 800
-
 # Approximate Spectra-6 inks, for the desktop --preview dither only. On the Pi
 # the Inky library maps to the panel's real palette.
 SPECTRA6 = [(236, 234, 223), (26, 26, 28), (165, 60, 56), (198, 176, 74), (49, 71, 130), (58, 110, 72)]
@@ -39,13 +40,37 @@ DEFAULT_SELECTOR = ".station"
 DEFAULT_STATE = "~/.birdframe/state"
 
 
-def screenshot(url: str, selector: str, timeout_ms: int = 30_000) -> bytes:
+def screen_config() -> dict | None:
+    """The station's screen (name/width/height) from $STATION_PROFILE/station.yml, or None.
+
+    None means the station has no physical panel: the shooter (and the /station page it
+    would capture) simply don't apply. Falls back to the shipped example profile the same
+    way the Rails side does."""
+    import yaml
+
+    root = Path(__file__).resolve().parents[1]
+    for profile in [os.environ.get("STATION_PROFILE"), root / "stations" / "example"]:
+        if not profile:
+            continue
+        f = Path(profile) / "station.yml"
+        if not f.is_file():
+            continue
+        cfg = (yaml.safe_load(f.read_text()) or {}).get("screen")
+        if isinstance(cfg, dict) and int(cfg.get("width") or 0) > 0 and int(cfg.get("height") or 0) > 0:
+            return {"name": cfg.get("name") or "e-ink screen",
+                    "width": int(cfg["width"]), "height": int(cfg["height"])}
+        if cfg is not None:
+            return None
+    return None
+
+
+def screenshot(url: str, selector: str, width: int, height: int, timeout_ms: int = 30_000) -> bytes:
     """Render the station page and return PNG bytes of the selected panel area."""
     from playwright.sync_api import sync_playwright
 
     with sync_playwright() as p:
         browser = p.chromium.launch()
-        page = browser.new_page(viewport={"width": PANEL_W, "height": PANEL_H})
+        page = browser.new_page(viewport={"width": width, "height": height})
         try:
             page.goto(url, wait_until="networkidle", timeout=timeout_ms)
             element = page.wait_for_selector(selector, timeout=timeout_ms)
@@ -109,8 +134,14 @@ def main() -> int:
     ap.add_argument("--state", default=DEFAULT_STATE, help="file holding the last-pushed signature")
     args = ap.parse_args()
 
+    screen = screen_config()
+    if screen is None:
+        print("no screen: configured in station.yml — nothing to shoot")
+        return 0
+    print(f"shooting for {screen['name']} ({screen['width']}x{screen['height']})")
+
     try:
-        png = screenshot(args.url, args.selector)
+        png = screenshot(args.url, args.selector, screen["width"], screen["height"])
     except Exception as exc:  # noqa: BLE001 — surface any browser/network failure plainly
         print(f"screenshot failed ({args.url}): {exc}", file=sys.stderr)
         return 1
