@@ -34,7 +34,7 @@ PANEL_W, PANEL_H = 480, 800
 # the Inky library maps to the panel's real palette.
 SPECTRA6 = [(236, 234, 223), (26, 26, 28), (165, 60, 56), (198, 176, 74), (49, 71, 130), (58, 110, 72)]
 
-DEFAULT_URL = "http://localhost:4030/station"
+DEFAULT_URL = "http://localhost:3000/station"  # the Makefile passes the station-resolved port
 DEFAULT_SELECTOR = ".station"
 DEFAULT_STATE = "~/.birdframe/state"
 

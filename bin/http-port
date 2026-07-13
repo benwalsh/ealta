@@ -1,0 +1,12 @@
+#!/usr/bin/env sh
+# The station's web port, one resolution for every tool:
+#   $PORT (env)  →  station.yml `http_port:`  →  3000 (the Rails default).
+# Callers source .env first so STATION_PROFILE is set.
+if [ -n "$PORT" ]; then
+  echo "$PORT"
+  exit 0
+fi
+f="${STATION_PROFILE:-}/station.yml"
+p=""
+[ -f "$f" ] && p=$(sed -n 's/^http_port:[[:space:]]*//p' "$f" | head -1)
+echo "${p:-3000}"

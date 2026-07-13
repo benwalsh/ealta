@@ -3,7 +3,6 @@
 .ONESHELL:
 SHELL := /bin/bash
 
-PORT ?= 4030
 POSES ?= 1
 
 .PHONY: help setup new-station serve dev listen analyze regen restyle cutout declutter masks build doctor armcheck test lint
@@ -21,9 +20,10 @@ new-station:  ## scaffold your own station profile:  make new-station NAME=yourp
 	cp -r stations/example stations/$(NAME)
 	@echo "created stations/$(NAME) — edit its station.yml, then set STATION_PROFILE=$(CURDIR)/stations/$(NAME) in .env"
 
-serve:  ## run the collage web app  (override with: make serve PORT=4030)
+serve:  ## run the collage web app  (PORT= overrides; else station.yml http_port; else 3000)
 	set -a; source .env; set +a; \
-	cd dashboard && bin/rails server -p $(PORT)
+	port=$$(bin/http-port); \
+	cd dashboard && bin/rails server -p $$port
 
 # bin/dev already sources the root .env and runs foreman; the extra -f wins over its
 # default Procfile.dev (optparse keeps the last flag), adding the listener process.
@@ -80,11 +80,13 @@ restyle:  ## redraw the whole Irish library in the current prompt style, then cu
 	uv run python pipeline/scripts/cutout_flood.py && \
 	uv run python pipeline/scripts/build_masks.py
 
-frame-preview:  ## dither /station to a PNG to inspect the Inky look (no hardware)
-	uv run python shooter/shoot.py --url http://localhost:$(PORT)/station --preview $(or $(OUT),frame.png)
+frame-preview:  ## dither /station to a PNG to inspect the e-ink look (no hardware)
+	set -a; source .env; set +a; \
+	uv run python shooter/shoot.py --url http://localhost:$$(bin/http-port)/station --preview $(or $(OUT),frame.png)
 
-frame:  ## push the panel to the Inky  (Pi only)
-	uv run python shooter/shoot.py --url http://localhost:$(PORT)/station
+frame:  ## push the panel to the e-ink screen  (device only)
+	set -a; source .env; set +a; \
+	uv run python shooter/shoot.py --url http://localhost:$$(bin/http-port)/station
 
 purge:  ## clear all detections (reset the collage to empty)
 	cd dashboard && bin/rails runner 'puts "cleared #{Detection.delete_all} detections"'
