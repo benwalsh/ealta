@@ -1,13 +1,31 @@
 require 'net/http'
 require 'json'
 
-# Cached Wikipedia species descriptions for the detail panel. English prose is keyed by
-# scientific name (en.wikipedia resolves those). Irish prose is a faithful TRANSLATION of
-# that English summary (Bedrock) — Irish Wikipedia covers only a fraction of species and is
-# usually sparse, so translating the richer English reads far better; the native ga.wikipedia
-# article is only a fallback when the model is unavailable (e.g. the offline Pi). Fetched
-# once per species so the panel doesn't hit the network/model on every open.
+# Cached species descriptions for the detail panel. When an LLM is configured, the English
+# prose is a SMART SUMMARY of the Wikipedia lead section (Bedrock) — the raw first paragraph
+# too often opens on naming variants and how-to-tell-it-apart-from-lookalikes trivia (the
+# golden plover's "also known as… similar to Pluvialis dominica…"), which is dull and then
+# faithfully translated into equally dull Irish. The summary keeps what's characterful about
+# the bird and drops the digressions. With no LLM (the offline Pi, a key-less station) it
+# falls back to the raw lead paragraph — still real, just less curated.
+#
+# English is keyed by scientific name (en.wikipedia resolves those). Irish is a faithful
+# TRANSLATION of the English (Bedrock), since ga.wikipedia covers only a fraction of species;
+# the native ga article is a fallback when the model is unavailable. Fetched once per species
+# so the panel doesn't hit the network/model on every open.
 class SpeciesInfo < ApplicationRecord
+  # Distil the Wikipedia lead into a warm, readable description of the BIRD — not its
+  # nomenclature. Summarise only from the supplied text; add no outside knowledge.
+  SUMMARISE_DESC = <<~PROMPT.freeze
+    You are writing the short description shown when someone taps a bird in a birdsong app.
+    From the Wikipedia text below, write 2–3 sentences on what makes THIS bird itself: how it
+    looks, how it behaves, its voice, where and how it lives. Draw ONLY from the text given —
+    add nothing from your own knowledge, and if the text is thin, keep it short rather than
+    invent. Skip the encyclopedic throat-clearing: alternative common names, who named it,
+    and how it differs from similar species are NOT interesting here — leave them out. Plain,
+    warm, present tense. No preamble, no headings — return only the description prose.
+  PROMPT
+
   # A faithful Irish rendering of the English summary, using the established Irish bird name.
   TRANSLATE_DESC = <<~PROMPT.freeze
     Translate this bird's species description into natural, idiomatic Irish (Gaeilge), with
@@ -16,6 +34,12 @@ class SpeciesInfo < ApplicationRecord
     Return only the Irish prose.
   PROMPT
 
+  # How much of the English article to hand the summariser: the opening ~4000 characters,
+  # NOT just the lead. Many bird articles open on a short nomenclature paragraph and keep
+  # the behaviour/voice/habitat down in Description and Distribution — exactly the
+  # interesting part a lead-only fetch misses (see fetch_lead).
+  LEAD_CHARS = 4000
+
   validates :sci_name, presence: true, uniqueness: true
 
   class << self
@@ -23,7 +47,7 @@ class SpeciesInfo < ApplicationRecord
       info = find_or_initialize_by(sci_name: sci)
       return info.description if info.description.present?
 
-      text = fetch(sci, 'en') || (common && fetch(common, 'en'))
+      text = describe(sci, common)
       info.update(description: text, fetched_at: Time.current) if text
       text
     end
@@ -54,6 +78,32 @@ class SpeciesInfo < ApplicationRecord
     end
 
     private
+
+    # The English description: an LLM summary of the Wikipedia lead when a model is
+    # configured, else the raw lead paragraph. Both draw on Wikipedia by scientific name,
+    # falling back to the common name (some articles resolve only under the vernacular).
+    def describe(sci, common)
+      if Bedrock.available?
+        lead = fetch_lead(sci) || (common && fetch_lead(common))
+        summary = lead && summarise(lead)
+        return summary if summary.present?
+      end
+      # No model, or the summary failed: the plain first-paragraph extract.
+      fetch(sci, 'en') || (common && fetch(common, 'en'))
+    end
+
+    # Wikipedia lead → a warm 2–3 sentence description of the bird via Bedrock. Uses the
+    # stronger enrich model (the panel text is read closely; Nova Lite is terser and blander)
+    # and is cached per species. nil on a disabled/failed model so describe() falls back.
+    def summarise(lead)
+      return nil if lead.blank? || !Bedrock.available?
+
+      Bedrock.converse(system: SUMMARISE_DESC, user: lead,
+                       model_id: Bedrock.enrich_model_id, max_tokens: 400).presence
+    rescue StandardError => e
+      Rails.logger.warn("SpeciesInfo: description summary failed (#{e.class}: #{e.message})")
+      nil
+    end
 
     # English summary → a faithful Irish rendering via Bedrock (max_tokens raised for a
     # multi-sentence description). nil when there's nothing to translate, the model is
@@ -133,6 +183,19 @@ class SpeciesInfo < ApplicationRecord
       return nil if data['type'] == 'disambiguation'
 
       data['extract'].presence
+    rescue StandardError
+      nil
+    end
+
+    # The opening LEAD_CHARS of the English article as raw material for the summary.
+    # exchars truncates server-side at a word boundary; the summary prompt ignores the
+    # naming throat-clearing at the top.
+    def fetch_lead(title)
+      json = get_json('https://en.wikipedia.org/w/api.php?action=query&format=json&redirects=1' \
+                      "&prop=extracts&explaintext=1&exchars=#{LEAD_CHARS}&titles=" \
+                      "#{ERB::Util.url_encode(title.tr(' ', '_'))}")
+      page = json&.dig('query', 'pages')&.values&.first
+      page && page['missing'].nil? ? page['extract'].presence : nil
     rescue StandardError
       nil
     end
