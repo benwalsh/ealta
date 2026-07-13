@@ -46,6 +46,20 @@ RSpec.describe DailyLetter do
     expect(user.reload.last_digest_on).to eq(date)
   end
 
+  it 'picks the most notable bird WITH art as the hero' do
+    allow(DailyFacts).to receive(:for).and_return(
+      { items: [
+        { sci_name: 'Anser anser', common_name: 'Greylag Goose', irish_name: 'Gé ghlas', importance: 90 },
+        { sci_name: 'Passer domesticus', common_name: 'House Sparrow', irish_name: 'Gealbhan binne', importance: 10 }
+      ] }
+    )
+    # The goose has no art; the sparrow does — the hero is the best bird we can PICTURE.
+    allow(BirdMask).to receive(:for).and_return(nil)
+    allow(BirdMask).to receive(:for).with('passer-domesticus').and_return(instance_double(BirdMask))
+    hero = described_class.hero_bird(date)
+    expect(hero).to include(sci: 'Passer domesticus', slug: 'passer-domesticus', en: 'House Sparrow')
+  end
+
   it 'does nothing when sending is disabled (no ALERTS_FROM)' do
     allow(Notifier).to receive(:enabled?).and_return(false)
     letter_subscriber
