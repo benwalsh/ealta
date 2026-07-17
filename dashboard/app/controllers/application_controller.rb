@@ -53,6 +53,37 @@ class ApplicationController < ActionController::Base
       avatar_url: current_user.avatar_url, admin: current_user.admin? }
   end
 
+  # The first-paint seed for the React SPA (auth, language, brand, place, follows), so the
+  # chrome needs no round-trip. `open_panel` pre-opens the account/admin side-panel when the
+  # SPA is booted by a hard nav to /account or /admin (both render this same mount point).
+  def spa_bootstrap(open_panel: nil)
+    {
+      current_user: user_payload,
+      ui_lang:      ui_lang,
+      windows:      WINDOWS,
+      place:        place_payload,
+      favourites:   followed_sci_names,
+      site_name:    Station.site_name,
+      # nil when the station ships no mark — the masthead then renders the word alone.
+      assets:       { mark:     (station_brand_path('mark') if Station.brand_asset('mark')),
+                      mark_alt: Station.mark_alt },
+      open_panel:   open_panel
+    }
+  end
+
+  # Station.place plus a compact "53.3°N 6.2°W" label for the page footer (the almanac
+  # row no longer carries place). Coords from the cached almanac, ENV as the backstop;
+  # coords is nil when neither is set, place itself nil when nothing is configured.
+  def place_payload
+    base = Station.place
+    return nil unless base
+
+    coords = Almanac.current[:coords] || {}
+    lat = (coords[:lat] || ENV.fetch('BIRD_LAT', nil))&.to_f
+    lon = (coords[:lon] || ENV.fetch('BIRD_LON', nil))&.to_f
+    base.merge(coords: (lat && lon ? helpers.format_coords(lat, lon) : nil))
+  end
+
   def current_window
     valid = WINDOWS.map { |_label, hours| hours }
     valid.include?(params[:h]&.to_i) ? params[:h].to_i : 24

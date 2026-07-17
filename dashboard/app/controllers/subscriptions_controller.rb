@@ -10,11 +10,16 @@ class SubscriptionsController < ApplicationController
   # arrivals are carried by the daily letter's narration instead.
   BREAKING_TYPES = %w[rarity first_ever seasonal].freeze
 
+  # HTML boots the React SPA with the account panel pre-opened (a hard nav to /account);
+  # JSON feeds that panel. The follow list isn't serialized — the SPA already holds it.
   def index
-    subs = current_user.subscriptions.active
-    @follows = subs.where(alert_type: 'species').order(:sci_name)
-    @roundup = subs.exists?(alert_type: 'roundup')
-    @species = species_options
+    respond_to do |format|
+      format.html do
+        @bootstrap = spa_bootstrap(open_panel: 'account')
+        render 'collage/show', layout: 'editorial'
+      end
+      format.json { render json: AccountSerializer.call(current_user) }
+    end
   end
 
   # Add a followed species from the picker; it inherits the user's current follow
@@ -32,14 +37,25 @@ class SubscriptionsController < ApplicationController
   def cadence
     type = params[:alert_type]
     wanted = params[:cadence]
-    return redirect_to(account_path) unless Subscription::CADENCES.include?(wanted)
+    unless Subscription::CADENCES.include?(wanted)
+      return respond_to do |format|
+        format.html { redirect_to account_path }
+        format.json { render json: { ok: false }, status: :unprocessable_content }
+      end
+    end
 
     case type
     when 'species'  then apply_follow_cadence(wanted)
     when 'breaking' then apply_breaking(wanted)
     when 'roundup'  then apply_roundup(wanted)
     end
-    redirect_to account_path
+
+    respond_to do |format|
+      format.html { redirect_to account_path }
+      format.json do
+        render json: { ok: true, roundup: current_user.subscriptions.active.exists?(alert_type: 'roundup') }
+      end
+    end
   end
 
   def destroy
