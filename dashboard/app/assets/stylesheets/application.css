@@ -445,6 +445,21 @@ body:has(.acct) { overflow-y: auto; overflow-x: hidden; height: auto; min-height
 .acct-add-btn { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 .acct-remove { color: var(--ink-soft); }
 
+/* Segmented / action button — the admin console's control, in the .acct-btn idiom. Grouped
+   inside .acct-cadence (language pick) or standing alone in a maintenance row. */
+.acct-seg {
+  border: 1px solid var(--rule); background: var(--paper); color: var(--ink);
+  font-size: 13px; padding: 8px 14px; border-radius: 6px; cursor: pointer;
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+.acct-seg:hover:not(:disabled) { border-color: var(--ink-soft); }
+.acct-seg.is-on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.acct-seg:disabled { opacity: 0.5; cursor: default; }
+.acct-seg + .acct-seg { margin-left: 8px; }
+.adm-mt { margin-top: 18px; }
+.adm-danger { color: var(--red); border-color: var(--red); }
+.adm-danger:hover:not(:disabled) { border-color: var(--red); }
+
 /* Delivery cadence — a quiet segmented control (Now / Digest / Off). */
 /* Delivery is a single checkbox now: ticked = on (in the daily letter / immediate),
    unticked = off. A quiet inked box, in keeping with the ink-on-paper voice. */

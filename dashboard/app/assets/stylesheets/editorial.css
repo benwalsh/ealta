@@ -101,6 +101,47 @@ body.ed {
 .ed-avatar-img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .ed-avatar-initial { font: 12px var(--mono); color: var(--ink-2); }
 
+/* ── Docking side-panels (account / admin) ──────────────────────────────────
+   The account and admin surfaces dock at the right edge instead of being their
+   own pages. They APPEAR with a quiet opacity fade — never a slide — so the 24h
+   sparkline stays the only moving thing. The root sits above the sticky topbar
+   (z-50). The panel bodies reuse the .acct-* / .adm-* classes. */
+.ed-panel-root {
+  position: fixed; inset: 0; z-index: 60;
+  display: flex; justify-content: flex-end;
+  opacity: 0; pointer-events: none;
+  transition: opacity 240ms ease;
+}
+.ed-panel-root.is-open { opacity: 1; pointer-events: auto; }
+@media (prefers-reduced-motion: reduce) { .ed-panel-root { transition: none; } }
+.ed-panel-scrim { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.32); }
+.ed-panel {
+  position: relative; height: 100vh; margin-left: auto;
+  width: min(100%, 460px);
+  background: var(--paper); border-left: 1px solid var(--ink);
+  overflow-y: auto; padding: 26px 30px 60px;
+  box-shadow: -30px 0 80px rgba(0, 0, 0, 0.14);
+}
+.ed-panel--wide { width: min(100%, 720px); }
+.ed-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.ed-panel-head .acct-h1 { margin: 0; }
+.ed-panel-close {
+  flex: none; background: var(--paper-2); border: 0;
+  width: 30px; height: 30px; border-radius: 999px;
+  font: 16px/1 var(--mono); color: var(--ink); cursor: pointer;
+  box-shadow: inset 0 0 0 1px var(--rule);
+}
+.ed-panel-close:hover { color: var(--ink); }
+/* Margin-dock: on a screen wide enough that the slim account panel clears the centred
+   1120 measure, drop the scrim and let it rest in the right margin beside the untouched
+   live column. The wide admin console stays an overlay — a work surface, not a glance. */
+@media (min-width: 2040px) {
+  .ed-panel-root--slim { background: transparent; pointer-events: none; }
+  .ed-panel-root--slim .ed-panel-scrim { display: none; }
+  .ed-panel-root--slim .ed-panel { box-shadow: none; pointer-events: auto; }
+}
+@media (max-width: 560px) { .ed-panel { width: 100%; border-left: 0; } }
+
 /* ---- Greatest hits: the collage, distilled to a pinned horizontal line ----
    Appears (fixed, just under the condensed masthead) once you scroll past the full
    collage, so the loudest birds stay to hand as a strip. */

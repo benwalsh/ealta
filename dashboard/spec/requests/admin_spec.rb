@@ -36,13 +36,29 @@ RSpec.describe 'Admin' do
     expect(response).to redirect_to('/')
   end
 
-  it 'renders the health panel for admins' do
+  it 'boots the SPA with the admin panel open (HTML) for admins' do
     allow_any_instance_of(User).to receive(:admin?).and_return(true)
     sign_in
     get '/admin'
     expect(response).to have_http_status(:ok)
-    expect(response.body).to include('Listening').and include('Alerts').and include('System')
-    expect(response.body).to include('Station').and include('Gaeilge').and include('English')
+    expect(response.body).to include('id="ealta-app"')
+    expect(response.body).to include('&quot;open_panel&quot;:&quot;admin&quot;')
+  end
+
+  it 'serves the health snapshot as JSON for admins' do
+    allow_any_instance_of(User).to receive(:admin?).and_return(true)
+    sign_in
+    get '/admin', headers: { 'Accept' => 'application/json' }
+    expect(response).to have_http_status(:ok)
+    body = response.parsed_body
+    expect(body).to include('listening', 'alerts', 'system', 'station')
+    expect(body['station']['options'].pluck('name')).to include('English', 'Gaeilge')
+  end
+
+  it 'returns 403 (not an HTML redirect) to a non-admin JSON caller' do
+    sign_in # not in ADMIN_EMAILS
+    get '/admin', headers: { 'Accept' => 'application/json' }
+    expect(response).to have_http_status(:forbidden)
   end
 
   it 'lets an admin change the station language' do
