@@ -12,12 +12,16 @@ function csrf(): string {
 
 interface FollowValue {
   enabled: boolean
+  // The current followed sci_names — so the account panel can list them without a second
+  // fetch. Same Set the checkboxes read; one source of truth.
+  followed: string[]
   following: (sci: string) => boolean
   toggle: (sci: string) => void
 }
 
 const FollowContext = createContext<FollowValue>({
   enabled: false,
+  followed: [],
   following: () => false,
   toggle: () => {},
 })
@@ -62,7 +66,9 @@ export function FollowProvider({
   }
 
   return (
-    <FollowContext.Provider value={{ enabled, following: (sci) => set.has(sci), toggle }}>
+    <FollowContext.Provider
+      value={{ enabled, followed: Array.from(set), following: (sci) => set.has(sci), toggle }}
+    >
       {children}
     </FollowContext.Provider>
   )

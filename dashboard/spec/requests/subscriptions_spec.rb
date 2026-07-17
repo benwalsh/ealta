@@ -26,15 +26,29 @@ RSpec.describe 'Subscriptions' do
     expect(response).to redirect_to('/')
   end
 
+  it 'returns 401 to a signed-out JSON caller' do
+    get '/account', headers: { 'Accept' => 'application/json' }
+    expect(response).to have_http_status(:unauthorized)
+  end
+
   context 'when signed in' do
     before { sign_in }
 
-    it 'renders the account page' do
+    it 'boots the SPA with the account panel open (HTML)' do
       get '/account'
       expect(response).to have_http_status(:ok)
-      # bi() renders both languages; apostrophes are html-escaped, so assert on stable fragments.
-      expect(response.body).to include('The daily letter', 'Species you', 'Speicis a leanann tú')
-      expect(response.body).not_to include('Breaking news') # trimmed: the page is the letter + following only
+      expect(response.body).to include('id="ealta-app"')
+      # The bootstrap tells the SPA to open the account panel on a hard nav.
+      expect(response.body).to include('&quot;open_panel&quot;:&quot;account&quot;')
+    end
+
+    it 'serves the account data as JSON' do
+      get '/account', headers: { 'Accept' => 'application/json' }
+      expect(response).to have_http_status(:ok)
+      body = response.parsed_body
+      expect(body).to include('roundup' => false)
+      expect(body['species']).to be_present
+      expect(body['species'].first).to include('sci', 'en')
     end
 
     it 'creates a species subscription' do

@@ -15,9 +15,10 @@ interface MastheadProps {
   bootstrap: Bootstrap
   tab: Tab
   onTab: (t: Tab) => void
+  onOpenAccount: () => void
 }
 
-export function Masthead({ bootstrap, tab, onTab }: MastheadProps) {
+export function Masthead({ bootstrap, tab, onTab, onOpenAccount }: MastheadProps) {
   const { lang, setLang, t } = useLang()
   // The masthead is sticky and condenses once the page scrolls, so the logo + nav
   // stay to hand without the full-height header eating the viewport.
@@ -71,7 +72,7 @@ export function Masthead({ bootstrap, tab, onTab }: MastheadProps) {
               GA
             </button>
           </div>
-          <AccountMenu user={bootstrap.current_user} />
+          <AccountMenu user={bootstrap.current_user} onOpenAccount={onOpenAccount} />
         </nav>
       </div>
     </header>

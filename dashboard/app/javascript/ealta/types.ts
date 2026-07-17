@@ -20,6 +20,57 @@ export interface Bootstrap {
   site_name: string
   // The station's mark, streamed from its profile. null when the station ships none.
   assets: { mark: string | null; mark_alt: { en: string; ga: string } }
+  // A hard nav to /account or /admin boots the SPA with that side-panel pre-opened.
+  open_panel: 'account' | 'admin' | null
+}
+
+// The account panel's own data (GET /account.json). The follow LIST isn't here — it
+// comes from the FollowProvider (favourites), resolving names against `species`.
+export interface SpeciesOption {
+  sci: string
+  en: string
+  ga: string | null
+}
+export interface Account {
+  roundup: boolean
+  species: SpeciesOption[]
+}
+
+// The admin health panel's data (GET /admin.json). Mirrors AdminHealth.snapshot with
+// Times as ISO strings, plus the station-language block for the wall-language control.
+export interface AdminHealth {
+  listening: {
+    last_heard_at: string | null
+    last_heard_ago: number | null
+    last_alive_at: string | null
+    last_alive_ago: number | null
+    freshness: 'fresh' | 'quiet' | 'stale' | 'none'
+    last_species: { sci: string; en: string; ga: string | null } | null
+    detections_today: number
+    detections_all_time: number
+    species_today: number
+    species_all_time: number
+  }
+  alerts: {
+    configured: boolean
+    from: string | null
+    following: number
+    standing_rules: number
+    events_total: number
+    events_pending: number
+    last_event: { type: string; name: string; at: string } | null
+  }
+  system: {
+    env: string
+    adapter: string
+    site_url: string | null
+    llm_region: string | null
+    backup: { configured: boolean; bucket: string | null }
+  }
+  station: {
+    language: string
+    options: { code: string; name: string }[]
+  }
 }
 
 export interface CollageNode {

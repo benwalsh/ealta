@@ -6,8 +6,14 @@ function csrf(): string {
 
 // The masthead account control. Signed out: a plain mono "Sign in" that posts
 // straight to Google (OmniAuth needs a CSRF-protected POST). Signed in: the avatar
-// links to /account — sign-out and the admin link live on that page.
-export function AccountMenu({ user }: { user: CurrentUser | null }) {
+// opens the account side-panel in place — sign-out and the admin link live there.
+export function AccountMenu({
+  user,
+  onOpenAccount,
+}: {
+  user: CurrentUser | null
+  onOpenAccount: () => void
+}) {
   if (!user) {
     return (
       <form className="ed-signin" method="post" action="/auth/google_oauth2">
@@ -20,12 +26,12 @@ export function AccountMenu({ user }: { user: CurrentUser | null }) {
   }
 
   return (
-    <a className="ed-avatar" href="/account" aria-label="Your account" title={user.name}>
+    <button className="ed-avatar" onClick={onOpenAccount} aria-label="Your account" title={user.name}>
       {user.avatar_url ? (
         <img className="ed-avatar-img" src={user.avatar_url} alt={user.name} referrerPolicy="no-referrer" />
       ) : (
         <span className="ed-avatar-initial">{user.name.trim().charAt(0).toUpperCase()}</span>
       )}
-    </a>
+    </button>
   )
 }
