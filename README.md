@@ -88,6 +88,10 @@ paper-like, one live gesture — the sparkline), and **rigorous factuality about
 (Ruby computes every count and claim; the model only narrates already-true facts, and
 nothing unsourced ships). Keep them and your station will feel like Ealta.
 
+A profile and a `.env` are enough for a station on your own network. If you'd rather commit
+your profile and run your own cloud deploy, [`docs/FORK.md`](docs/FORK.md) covers keeping a
+private repo that shares the engine's history, so `git pull upstream main` brings updates.
+
 ## Multiple languages
 
 BirdNET ships labels for ~30 languages under `model/l18n/`. A station's `languages:`
