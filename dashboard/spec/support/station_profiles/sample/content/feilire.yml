@@ -4,6 +4,11 @@
   title: { en: "Founders' Day", ga: "Lá na mBunaitheoirí" }
   kind: saint
   gloss: { en: "a curated day, for the sample profile", ga: "lá saothraithe, don phróifíl shamplach" }
+  lore:
+    en: "A longer curated note about the founders, for the sample profile's deep dive."
+    ga: "Nóta níos faide faoi na bunaitheoirí, do thumadh domhain na próifíle samplaí."
+  sources:
+    - { host: "example.org", url: "https://example.org/founders" }
 "11-01":
   title: { en: "Turn of the Year", ga: "Casadh na Bliana" }
   kind: quarter_day

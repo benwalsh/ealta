@@ -50,24 +50,11 @@ class TodayCard
       }
     end
 
-    # Turn each blind-spot band's bucket range into clock-time labels: a full
-    # "No data · 06:00–08:48" and a compact "No data · 3h" the phone view uses. Bilingual.
-    def gap_labels(gaps, now, start)
-      bucket = (now - start) / BUCKETS
-      Array(gaps).map do |g|
-        from = start + (g[:from] * bucket)
-        to   = start + ((g[:to] + 1) * bucket)
-        span = "#{from.strftime('%H:%M')}–#{to.strftime('%H:%M')}"
-        dur  = duration_label(to - from)
-        { x0: g[:x0], x1: g[:x1],
-          label: { en: "No data · #{span}", ga: "Gan sonraí · #{span}" },
-          short: { en: "No data · #{dur}", ga: "Gan sonraí · #{dur}" } }
-      end
-    end
-
-    # A compact duration: whole hours once past an hour, otherwise minutes.
-    def duration_label(seconds)
-      seconds >= 3600 ? "#{(seconds / 3600.0).round}h" : "#{(seconds / 60.0).round}m"
+    # The blind-spot bands, as x-spans the view can use. No labels: the sparkline shows a gap
+    # by breaking (or by drawing nothing at all when the whole window is uncovered), so there
+    # is no longer a slab to caption. `offline` / `mic_hours` carry the same fact in words.
+    def gap_labels(gaps, _now, _start)
+      Array(gaps).map { |g| { x0: g[:x0], x1: g[:x1] } }
     end
 
     # Just the ambient almanac readings (weather / moon / sun / tide / place), the same
@@ -83,6 +70,13 @@ class TodayCard
     def date_label(now)
       { en: now.strftime('%A, %-d %B'),
         ga: "#{GA_DAYS[now.wday]}, #{now.day} #{GA_MONTHS[now.month]}" }
+    end
+
+    # The compact date for the panel's printed stamp — day and month, no weekday. A time alone
+    # can't tell you whether the impression is an hour old or a week old; the date can, and it
+    # is the only way a stopped station gives itself away on the wall.
+    def stamp_date(now)
+      { en: now.strftime('%-d %B'), ga: "#{now.day} #{GA_MONTHS[now.month]}" }
     end
 
     # Bullets with species names emphasised, HTML-escaped, capped at four. English common
@@ -233,8 +227,16 @@ class TodayCard
       moon = MoonPhase.for(now.to_date)
       items = []
       items << weather_item(data[:weather]) if data[:weather]
-      items << { icon: 'ti-moon', en: "#{moon.illumination}% #{moon.name.downcase}",
-                 ga: "#{moon.illumination}% #{moon.name_ga.downcase}" }
+      # The moon carries its own drawn shape (tonight's real phase) rather than a fixed ti-moon
+      # glyph, which is a crescent on every night of the month. `svg` is the SHADOW — the unlit
+      # part — because ink reads as dark: inking the lit part instead draws a negative. The view
+      # strokes the disc outline over it, so a full moon reads as an open circle.
+      # `short` is the panel's form: 480px of e-ink has room for a figure, not a phrase, and
+      # the drawn glyph already says which phase it is. The web row keeps the full label.
+      items << { icon: 'ti-moon', svg: moon.shadow,
+                 en: "#{moon.illumination}% #{moon.name.downcase}",
+                 ga: "#{moon.illumination}% #{moon.name_ga.downcase}",
+                 short: { en: "#{moon.illumination}%", ga: "#{moon.illumination}%" } }
       if (sun = data[:sun])
         items << { icon: 'ti-sunrise', en: sun[:rise], ga: sun[:rise] }
         items << { icon: 'ti-sunset', en: sun[:set], ga: sun[:set] }
@@ -246,7 +248,9 @@ class TodayCard
 
     def weather_item(weather)
       { icon: WEATHER_ICONS.fetch(weather[:text], 'ti-cloud'),
-        en: "#{weather[:temp]}°C #{weather[:text]}", ga: "#{weather[:temp]}°C #{weather[:text_ga]}" }
+        en: "#{weather[:temp]}°C #{weather[:text]}", ga: "#{weather[:temp]}°C #{weather[:text_ga]}",
+        # The panel takes the temperature alone; the icon already carries the conditions.
+        short: { en: "#{weather[:temp]}°C", ga: "#{weather[:temp]}°C" } }
     end
 
     def place_item(data)

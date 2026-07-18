@@ -18,6 +18,7 @@ class IngestController < ActionController::API
     if rows.any?
       store_batch(rows)
       scan_alerts(rows)
+      prepare_species_content(rows)
       refresh_summary
     end
     render json: { upserted: rows.size }
@@ -46,6 +47,19 @@ class IngestController < ActionController::API
     AlertEngine.scan(rows.pluck('Sci_Name'))
   rescue StandardError => e
     Rails.logger.error("[alerts] scan failed: #{e.class} #{e.message}")
+  end
+
+  # Queue up the modal content for any species in this batch that hasn't got it yet, so the
+  # page is built before anyone asks for it rather than during their click. Enqueue only —
+  # the work is two model calls and must never sit in the Pi's push request. Rescued for the
+  # same reason as alerts: the mirror copy is saved, and a queueing hiccup must not fail the
+  # ingest. If it does fail, the modal simply falls back to fetching on the click as before.
+  def prepare_species_content(rows)
+    SpeciesInfo.missing_content(rows.pluck('Sci_Name')).each do |sci|
+      PrepareSpeciesContentJob.perform_later(sci)
+    end
+  rescue StandardError => e
+    Rails.logger.error("[species] content enqueue failed: #{e.class} #{e.message}")
   end
 
   # Regenerate the LLM "today" summary now that fresh data has landed (staleness-

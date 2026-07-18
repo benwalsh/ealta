@@ -15,6 +15,13 @@ class SongSample
       manifest[sci].presence || SpeciesInfo.song_for(sci)
     end
 
+    # Is this species covered by the curated manifest? Then url_for resolves without touching
+    # the network or SpeciesInfo at all — so the cache-warmer must not read a blank
+    # fetched_song_at as "still cold" and re-warm it on every run.
+    def bundled?(sci)
+      manifest[sci].present?
+    end
+
     private
 
     def manifest

@@ -37,6 +37,22 @@ RSpec.describe DailyLetter do
     expect(described_class.deliver_all(date: date)).to eq(0)
   end
 
+  it 'leaves the day unmarked when the send fails, so the next sweep retries this reader' do
+    user = letter_subscriber
+    frozen_entry
+    allow(Notifier).to receive(:deliver_letter).and_return(false) # a transient SES failure
+    described_class.deliver_all(date: date)
+    expect(user.reload.last_digest_on).to be_nil
+  end
+
+  it 'sends a frozen empty day (a quiet or offline day) — the reader still hears from the station' do
+    user = letter_subscriber
+    JournalEntry.create!(date: date, source: 'template',
+                         bullets: { en: ['0 species'], ga: ['0 speiceas'] }, coverage: Array.new(24, true))
+    expect(Notifier).to receive(:deliver_letter).with(hash_including(user: user, date: date)).and_return(true)
+    expect(described_class.deliver_all(date: date)).to eq(1)
+  end
+
   it "skips a thin day (unsaved template entry) but marks it done, so it won't rescan" do
     user = letter_subscriber
     # No detections and no lore → JournalEntry.for returns the UNSAVED template narration.
@@ -46,18 +62,21 @@ RSpec.describe DailyLetter do
     expect(user.reload.last_digest_on).to eq(date)
   end
 
-  it 'picks the most notable bird WITH art as the hero' do
-    allow(DailyFacts).to receive(:for).and_return(
-      { items: [
-        { sci_name: 'Anser anser', common_name: 'Greylag Goose', irish_name: 'Gé ghlas', importance: 90 },
-        { sci_name: 'Passer domesticus', common_name: 'House Sparrow', irish_name: 'Gealbhan binne', importance: 10 }
-      ] }
-    )
-    # The goose has no art; the sparrow does — the hero is the best bird we can PICTURE.
+  it 'reads the frozen hero, carrying the illustration slug when the station has that art' do
+    JournalEntry.create!(date: date, source: 'facts', hero_sci_name: 'Passer domesticus',
+                         bullets: { en: ['x'], ga: ['y'] })
     allow(BirdMask).to receive(:for).and_return(nil)
     allow(BirdMask).to receive(:for).with('passer-domesticus').and_return(instance_double(BirdMask))
-    hero = described_class.hero_bird(date)
-    expect(hero).to include(sci: 'Passer domesticus', slug: 'passer-domesticus', en: 'House Sparrow')
+
+    expect(described_class.hero_bird(date)).to include(sci: 'Passer domesticus', slug: 'passer-domesticus')
+  end
+
+  it 'still features the frozen hero when there is no art — no picture slug, for a later photo' do
+    JournalEntry.create!(date: date, source: 'facts', hero_sci_name: 'Anser anser',
+                         bullets: { en: ['x'], ga: ['y'] })
+    allow(BirdMask).to receive(:for).and_return(nil)
+
+    expect(described_class.hero_bird(date)).to include(sci: 'Anser anser', slug: nil)
   end
 
   it 'does nothing when sending is disabled (no ALERTS_FROM)' do

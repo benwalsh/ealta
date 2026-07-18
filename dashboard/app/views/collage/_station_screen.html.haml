@@ -1,47 +1,63 @@
--# The station screen — the exact pixels the e-ink panel shows. Shared by /station (the
--# clean device view the shooter captures) and /station/preview (the framed emulation),
--# so the desktop preview can never drift from what the panel actually renders. Its size
--# is the station's OWN screen (station.yml `screen:`), inlined so any panel works — the
--# stylesheet's 480×800 is only a fallback. It reads like a daily printed field-guide
--# broadside, not a live dashboard: the plate is frozen for the day, and only the live
--# line + status stamp move.
+-# The station screen — the exact pixels the Inky Impression 7.3″ shows (480×800 portrait) and
+-# the shooter captures. Shared by /station (the device view) and /station/preview (the framed
+-# desktop emulation), so the preview can never drift from the panel.
+-#
+-# Four zones and nothing else: the day's plate, one piece of news, the almanac bar, and where
+-# to find more. There is no wordmark — the panel hangs on a wall in the house it belongs to,
+-# and 46px of masthead was the most expensive thing on the screen.
 %main.screen.station{ style: "width: #{Station.screen[:width]}px; height: #{Station.screen[:height]}px" }
-  %header.head
-    %h1.wordmark= Station.site_name
-    - if (here = station_text(Station.place))
-      %p.place= here
-  %hr.rule/
-  %section.collage-area{ "aria-label": "Birds recorded today" }
+  -# The plate: the day's flock, packed once and frozen, given every pixel the other three
+  -# zones don't need. This is the panel's reason to exist.
+  %section.plate{ "aria-label": "Birds recorded today" }
     = render partial: 'panel'
-  -# The live line: the plate is frozen, so the day's growth shows only here — the running
-  -# species count, and the single most recent arrival with its time.
-  %p.tally= station_text(en: "#{@species_today} species today", ga: "#{@species_today} speiceas inniu")
-  - if @arrival
-    - name = @arrival[:name].public_send(station_lang) || @arrival[:name].en
-    %p.arrival= "+ #{name} #{station_text(en: 'at', ga: 'ag')} #{@arrival[:at].strftime('%H:%M')}"
-  - else
-    %p.arrival.quiet= station_text(en: 'listening…', ga: 'ag éisteacht…')
-  -# The ambient almanac — the same weather / moon / sun / tide readings the home page's
-  -# row shows, as muted line-icon + label pairs (never emoji). A subset of the site's
-  -# content, in the panel's chosen language.
-  %footer.foot.today-almanac
+
+  -# ONE piece of news — the most recent species to make its FIRST appearance today, with the
+  -# time. The plate is frozen for the day, so this is the only line that moves; on a day with
+  -# nothing new it falls back to the running species count so the panel always says something.
+  %p.news
+    - if @arrival
+      - name = @arrival[:name].public_send(station_lang) || @arrival[:name].en
+      %span.news-name= name
+      %span.news-when= @arrival[:at].strftime('%H:%M')
+    - elsif @species_today.positive?
+      %span.news-name= station_text(en: "#{@species_today} species today",
+                                    ga: "#{@species_today} speiceas inniu")
+    - else
+      -# Every day starts at zero and stays there until the first bird — often for hours after
+      -# midnight. "0 species today" is true but a bleak thing to hang on a wall, so the panel
+      -# says what it is actually doing instead.
+      %span.news-name.quiet= station_text(en: 'Listening', ga: 'Ag éisteacht')
+
+  -# The almanac bar — four marks read at a glance (temperature, moon, sunrise, sunset). The
+  -# moon is DRAWN, not glyphed, so the panel shows tonight's real phase; item[:svg] is the
+  -# SHADOW, and it is inked SOLID here: the panel has no greyscale, so a tint would only
+  -# dither into noise at 20px.
+  %footer.bar
     - Array(@almanac).each do |item|
       %span
-        %i.ti{ class: item[:icon], "aria-hidden": "true" }
-        = station_text(item)
-  -# Status marker + an honest "updated" stamp — a periodically-printed bulletin, not a
-  -# live clock. A ring while the recorder is listening; a caret when it's gone quiet.
-  %p.status
-    - if @status[:listening]
-      %span.mark.on ○
-      %span= station_text(en: 'listening', ga: 'ag éisteacht')
-      %span.sep ·
-      - stamp = @updated_at.strftime('%H:%M')
-      %span= station_text(en: "updated #{stamp}", ga: "nuashonraithe #{stamp}")
-    - else
-      %span.mark.off △
-      - since = @status[:since] && @status[:since].strftime('%H:%M')
-      %span= station_text(en: "recorder quiet#{" since #{since}" if since}", ga: "ciúin#{" ó #{since}" if since}")
-  %p.wayfind
-    %span.wayfind-hint= station_text(en: 'see more at', ga: 'tuilleadh ag')
-    %span.wayfind-url= Station.url
+        - if item.key?(:svg)
+          %svg.alm-moon{ viewBox: '0 0 24 24', "aria-hidden": "true" }
+            %circle{ cx: 12, cy: 12, r: 9, fill: 'none', stroke: 'currentColor', "stroke-width": 1.5 }
+            - if item[:svg]
+              %path{ d: item[:svg], fill: 'currentColor' }
+        - else
+          %i.ti{ class: item[:icon], "aria-hidden": "true" }
+        = station_text(item[:short] || item)
+
+  -# The tide, on its own line and named: this is the panel in the house on the coast, and the
+  -# next turning point at the local beach is the one reading no other surface gives you.
+  - if @tide
+    %p.tide
+      %i.ti.ti-ripple{ "aria-hidden": "true" }
+      = station_text(@tide)
+
+  -# Where to see more, and an honest stamp of when this impression was taken — without it a
+  -# stopped station shows yesterday's plate forever with nothing to say so. Coarsened to the
+  -# half hour (see load_station) so an unchanged panel isn't reprinted every five minutes.
+  -# A caret marks a recorder that has gone quiet.
+  %p.foot-line
+    %span.site= Station.url
+    %span.stamp
+      - unless @status[:listening]
+        %span.quiet △
+      = "#{station_text(@printed_on)} · #{@printed_at.strftime('%H:%M')}"

@@ -9,6 +9,12 @@ module Enrichment
     TYPES = %w[fact regional_note folklore station_reading].freeze
     # station_reading is the station's OWN data — the only type allowed zero sources.
     SOURCELESS_TYPES = %w[station_reading].freeze
+    # Every field a source may carry, in display order — the citation contract, named ONCE.
+    # The display layer used to hand-list these and had already drifted from the producers:
+    # DuchasCitation emits `informant` and `school` (the 1930s schoolchildren and teachers the
+    # lore came from — folklore ethics, not a licence term) and both were being dropped on the
+    # floor before the card ever saw them. Add a field here and it threads through by itself.
+    SOURCE_FIELDS = %i[host url holder licence licence_url collector informant school].freeze
 
     attr_reader :attrs
 

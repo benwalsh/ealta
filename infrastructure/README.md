@@ -126,5 +126,7 @@ never deploys; your fork deploys on every push to `main`.
 - **Illustrations**: sync your art to the bucket and set `illustrations.base_url` in
   your station.yml (or `ILLUSTRATIONS_BASE_URL` on the task) to the CloudFront domain —
   see `tofu output illustrations_base_url`.
-- **Auth on the public mirror**: CloudFront strips cookies for cache hits, so the cloud
-  site is effectively anonymous. Admin stays on the device.
+- **Auth on the public mirror**: the dynamic default behaviour (`/`, `/api/*`) is
+  CachingDisabled and forwards cookies, so sign-in works and signed-in pages are never cached
+  or leaked; only the static prefixes (`/assets`, `/vite`, `/birds`) are edge-cached. Admin
+  stays on the device.

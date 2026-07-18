@@ -39,10 +39,10 @@ module "express_service" {
       # .github/workflows/deploy.yml) — this makes the cloud mirror render AS the station
       # (place, Irish names, lore, féilire) rather than the neutral example fallback.
       { name = "STATION_PROFILE", value = "/app/stations/${var.station_name}" },
-      # Bird art isn't baked into the image — /birds/<slug>.png redirects here, the
-      # illustrations bucket's CloudFront (illustrations.tf). Wired from the distribution so
-      # there's no URL to copy by hand.
-      { name = "ILLUSTRATIONS_BASE_URL", value = "https://${aws_cloudfront_distribution.illustrations.domain_name}" },
+      # Bird art isn't baked into the image — it lives on the illustrations CDN
+      # (illustrations.tf), which the collage links to directly at its vanity domain.
+      # Wired from the local so there's no URL to copy by hand.
+      { name = "ILLUSTRATIONS_BASE_URL", value = "https://${local.illustrations_domain}" },
       # Station coordinates — the almanac's location gate (Almanac.build returns nil
       # without these), driving weather (Open-Meteo), the nearest tide station, and the
       # sun/moon lines. On-device these come from .env; the cloud task needs them too or
@@ -58,6 +58,14 @@ module "express_service" {
       # out of sandbox, so it's safe to set now.
       { name = "ALERTS_FROM", value = "alerts@${var.domain_name}" },
       { name = "SITE_URL", value = "https://${var.domain_name}" },
+      # Stamp every send with the configuration set that feeds bounce/complaint events to
+      # SNS, and tell the callback which topic to trust. Unset = plain sends (dev, the Pi).
+      { name = "SES_CONFIGURATION_SET", value = aws_sesv2_configuration_set.main.configuration_set_name },
+      { name = "SES_TOPIC_ARN", value = aws_sns_topic.ses_events.arn },
+      # Allowlist for the unlinked /admin surface (User#admin?, fail-closed). Just emails,
+      # not a credential, so it rides in plain env; the actual addresses come from the
+      # gitignored terraform.tfvars, not this repo. Empty = no admins on the mirror.
+      { name = "ADMIN_EMAILS", value = var.admin_emails },
       # LLM "today" summary (Bedrock Nova Lite, EU inference profile). Defaults match
       # these, but pin them explicitly; refresh runs on ingest via bedrock:InvokeModel.
       { name = "BEDROCK_REGION", value = var.aws_region },
@@ -77,6 +85,7 @@ module "express_service" {
       { name = "SECRET_KEY_BASE", value_from = aws_ssm_parameter.secret_key_base.arn },
       { name = "DB_PASSWORD", value_from = aws_ssm_parameter.db_password.arn },
       { name = "CLOUD_INGEST_TOKEN", value_from = aws_ssm_parameter.ingest_token.arn },
+      { name = "SES_WEBHOOK_TOKEN", value_from = aws_ssm_parameter.ses_webhook_token.arn },
       { name = "GOOGLE_CLIENT_ID", value_from = aws_ssm_parameter.google_client_id.arn },
       { name = "GOOGLE_CLIENT_SECRET", value_from = aws_ssm_parameter.google_client_secret.arn },
     ]
@@ -99,6 +108,7 @@ module "express_service" {
     aws_ssm_parameter.secret_key_base.arn,
     aws_ssm_parameter.db_password.arn,
     aws_ssm_parameter.ingest_token.arn,
+    aws_ssm_parameter.ses_webhook_token.arn,
     aws_ssm_parameter.google_client_id.arn,
     aws_ssm_parameter.google_client_secret.arn,
   ]

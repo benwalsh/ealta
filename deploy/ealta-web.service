@@ -8,7 +8,7 @@ Description=ealta collage web app
 # dead/corrupt SD card comes back with its history instead of an empty database.
 After=network-online.target ealta-restore.service
 Wants=network-online.target ealta-restore.service
-# Never permanently give up restarting — an unattended station box should keep trying to
+# Never permanently give up restarting — an unattended box should keep trying to
 # recover, not stay down after a burst of failures (systemd's default is 5-in-10s → failed).
 StartLimitIntervalSec=0
 

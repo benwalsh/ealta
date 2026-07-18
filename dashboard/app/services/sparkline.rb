@@ -25,9 +25,12 @@ class Sparkline
 
       coverage = normalize_coverage(coverage, n)
       gaps = gaps_for(coverage, n, width, pad)
-      # No live curve to draw (silent-but-covered, or nothing known) → the resting line,
-      # with a band over any genuine blind spot.
-      return flat(width, height, pad, gaps: gaps) if counts.sum.zero? || coverage.none?
+      # Two different nothings, and they must not look alike. With the mic down for the whole
+      # window there is NO RECORD, so we draw nothing at all — an empty plot. The resting line
+      # would read as "a day when nothing was heard", which is a claim about birds we cannot
+      # make. Covered but genuinely silent IS that claim, and earns the resting line.
+      return blank(width, height, gaps: gaps) if coverage.none?
+      return flat(width, height, pad, gaps: gaps) if counts.sum.zero?
 
       points = plot_points(smooth(counts), width, height, pad)
       # Each covered run becomes its own curve; runs of one point can't be splined.
@@ -80,6 +83,14 @@ class Sparkline
         x1 = b == count - 1 ? width - pad : pad + ((b + 0.5) * step)
         { x0: r(x0), x1: r(x1), from: a, to: b }
       end
+    end
+
+    # No record at all: empty paths. The absence IS the reading — nothing is drawn, so a
+    # blind spot can never be mistaken for a flat zero. Previously this returned the resting
+    # line and relied on a grey "No data" slab being painted over it to correct the
+    # impression; drawing nothing says the same thing without the furniture.
+    def blank(width, height, gaps: [])
+      Paths.new(path: '', fill: '', gaps: gaps, w: width, h: height)
     end
 
     # A gentle resting line low on the card — the honest picture of a quiet day.

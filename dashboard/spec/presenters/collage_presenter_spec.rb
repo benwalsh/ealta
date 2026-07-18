@@ -60,4 +60,22 @@ RSpec.describe CollagePresenter do
       expect(described_class.new([]).nodes).to eq([])
     end
   end
+
+  describe 'illustration URLs' do
+    it 'serves the local /birds PNG at full quality when no CDN is configured' do
+      node = described_class.new([tally('Erithacus rubecula', 5)]).nodes.first
+      expect(node.image).to start_with('/birds/erithacus-rubecula.png?v=')
+      expect(node.image).not_to include('.webp')
+    end
+
+    it 'points at the pre-sized CDN WebP when ILLUSTRATIONS_BASE_URL is set' do
+      # A trailing slash on the base must not double up in the URL.
+      allow(Station).to receive(:setting).and_call_original
+      allow(Station).to receive(:setting).with('illustrations.base_url', env: 'ILLUSTRATIONS_BASE_URL').
+        and_return('https://cdn.example.net/art/')
+
+      node = described_class.new([tally('Erithacus rubecula', 5)]).nodes.first
+      expect(node.image).to start_with('https://cdn.example.net/art/erithacus-rubecula.webp?v=')
+    end
+  end
 end

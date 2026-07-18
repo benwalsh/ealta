@@ -1,57 +1,68 @@
-/* The station screen — the exact 480×800 portrait pixels the Inky panel shows. Shared
-   by the clean device view (/station, what the shooter captures and the panel renders)
-   and the desktop emulation (/station/preview). Kept full-colour here: the panel does
-   its own Spectra-6 dithering from a clean source, so the "e-ink" look is preview-only
-   (added by /station/preview, never baked into the device pixels). */
+/* The station screen — the exact 480×800 portrait pixels the Inky Impression 7.3″ shows.
+   Shared by the device view (/station, what the shooter captures) and the desktop emulation
+   (/station/preview). Kept full-colour here: the panel does its own Spectra-6 dithering from
+   a clean source, so the "e-ink" look is preview-only, never baked into the device pixels.
+
+   WRITTEN FOR THE PANEL, NOT A MONITOR. Spectra 6 carries seven fixed colours and no
+   greyscale, so every tint and every soft grey is really dithering — which at this size reads
+   as noise rather than as a lighter shade. So: solid ink throughout, no opacity, no hairline
+   greys, rules at 2px, and type sized to survive the dither and be read across a room. The
+   one place colour earns its keep is the birds themselves.
+
+   Refresh matters too: the Impression has no partial update, so every change is a full-panel
+   flash of ~30–40s. The layout is therefore a printed broadside — a frozen daily plate with a
+   single line that moves — rather than anything that wants to tick. */
 .screen {
   width: 480px; height: 800px; overflow: hidden;
   background: var(--paper); color: var(--ink);
-  padding: 30px 34px; display: flex; flex-direction: column;
+  padding: 22px 26px 20px; display: flex; flex-direction: column;
   font-family: "Baskerville", "Hoefler Text", "EB Garamond", Georgia, serif;
 }
-.screen .head { flex: 0 0 auto; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.screen .wordmark { margin: 0; font-size: 46px; font-weight: 500; line-height: 1; }
-.screen .place { margin: 0; font-style: italic; font-size: 19px; color: var(--ink-soft); text-align: right; }
-.screen .rule { border: 0; border-top: 1px solid var(--ink); margin: 12px 0 0; }
 
-/* The collage — the dominant element, filling the middle. */
-.screen .collage-area { flex: 1 1 auto; min-height: 0; margin: 8px 0; display: flex; align-items: center; justify-content: center; }
-.screen .collage-area svg { width: 100%; height: 100%; display: block; }
+/* The plate — the frozen daily collage, taking every pixel the other three zones don't need. */
+.screen .plate { flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; }
+.screen .plate svg { width: 100%; height: 100%; display: block; }
 
-/* The live line — the running species count, and the day's most recent arrival, since the
-   plate itself is frozen for the day. */
-.screen .tally { flex: 0 0 auto; margin: 0; text-align: center; font-size: 24px; line-height: 1.2; }
-.screen .arrival { flex: 0 0 auto; margin: 4px 0 14px; text-align: center; font-style: italic; font-size: 18px; color: var(--ink-2); }
-.screen .arrival.quiet { color: var(--ink-soft); }
-
-/* The ambient almanac — the same line-icon + label readings as the home page's row,
-   centred across the foot of the panel. */
-.screen .foot {
-  flex: 0 0 auto; border-top: 1px solid var(--ink); padding-top: 12px;
-  display: flex; flex-wrap: wrap; justify-content: center; align-items: center;
-  gap: 8px 22px; font: 13px ui-monospace, Menlo, monospace; letter-spacing: 0.03em;
-  color: var(--ink-2);
+/* One piece of news. Large, centred, and the only thing on the panel that changes hour to
+   hour — so it should be legible from the far side of the room, not squinted at. */
+.screen .news {
+  flex: 0 0 auto; margin: 0; padding: 15px 0 13px;
+  border-top: 2px solid var(--ink);
+  text-align: center; line-height: 1.12;
 }
-.screen .foot span { display: inline-flex; align-items: center; gap: 7px; }
-.screen .foot .ti { font-size: 17px; color: var(--ink-soft); line-height: 1; }
+.screen .news-name { display: block; font-size: 30px; }
+/* The waiting state — the same size, set in the voice-italic so it reads as the station
+   speaking rather than as a bird's name. */
+.screen .news-name.quiet { font-style: italic; }
+.screen .news-when { display: block; margin-top: 5px; font-style: italic; font-size: 20px; }
 
-/* Status marker + the honest "updated" stamp — a periodically-printed bulletin, not a
-   live clock. A ring while listening, a caret when the recorder's gone quiet. */
-.screen .status {
-  flex: 0 0 auto; margin: 12px 0 0;
-  display: flex; justify-content: center; align-items: center; gap: 8px;
-  font: 12px ui-monospace, Menlo, monospace; letter-spacing: 0.05em; color: var(--ink-2);
+/* The almanac bar — four marks (temperature, moon, sunrise, sunset), spaced across the width
+   and read at a glance. Mono for the figures; solid ink for every mark. */
+.screen .bar {
+  flex: 0 0 auto; border-top: 2px solid var(--ink); padding-top: 11px;
+  display: flex; justify-content: space-between; align-items: center;
+  font: 17px ui-monospace, Menlo, monospace; letter-spacing: 0.01em;
 }
-.screen .status .mark { font-size: 13px; line-height: 1; }
-.screen .status .mark.on { color: var(--green); }
-.screen .status .mark.off { color: var(--amber); }
-.screen .status .sep { color: var(--ink-soft); }
+.screen .bar span { display: inline-flex; align-items: center; gap: 6px; }
+.screen .bar .ti { font-size: 20px; line-height: 1; }
+/* The moon is drawn rather than glyphed, so the panel shows the real phase — and inked solid,
+   since a 55% tint would only dither into mush at this size. */
+.screen .bar .alm-moon { width: 20px; height: 20px; flex: none; }
 
-/* Wayfinding — a quiet line pointing guests to the full site. Set behind the content
-   like a printer's mark, never shouting. */
-.screen .wayfind {
-  flex: 0 0 auto; margin: 12px 0 0; text-align: center;
-  font: 12px ui-monospace, Menlo, monospace; letter-spacing: 0.06em; color: var(--ink-soft);
+/* The tide, given its own line so the local turning point can be named in full — the one
+   reading that matters most to the house this panel hangs in. */
+.screen .tide {
+  flex: 0 0 auto; margin: 9px 0 0;
+  display: flex; justify-content: center; align-items: center; gap: 7px;
+  font: 17px ui-monospace, Menlo, monospace; letter-spacing: 0.01em;
 }
-.screen .wayfind-hint { text-transform: uppercase; margin-right: 9px; }
-.screen .wayfind-url { color: var(--ink-2); }
+.screen .tide .ti { font-size: 20px; line-height: 1; }
+
+/* Wayfinding and the printed stamp, set at the two ends like a page footer: where to see
+   more, and when this impression was taken. */
+.screen .foot-line {
+  flex: 0 0 auto; margin: 13px 0 0;
+  display: flex; justify-content: space-between; align-items: baseline;
+  font: 15px ui-monospace, Menlo, monospace; letter-spacing: 0.03em;
+}
+.screen .foot-line .quiet { margin-right: 5px; }

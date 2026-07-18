@@ -3,7 +3,10 @@
 # API stays cookie-free; this is the one authenticated write surface (with the
 # favourites toggle).
 class SubscriptionsController < ApplicationController
-  before_action :require_login, except: :unsubscribe
+  before_action :require_login, except: %i[unsubscribe unsubscribe_letter]
+  # The email unsubscribe links are hit by mailbox providers doing a one-click POST
+  # (RFC 8058), which carries no CSRF token — token in the path is the auth instead.
+  skip_forgery_protection only: %i[unsubscribe unsubscribe_letter]
 
   # "Breaking news" = the urgent, as-it-happens kinds, delivered immediately (a rarity
   # or a first-ever sighting). One opt-in covers all of them; the calmer everyday
@@ -63,10 +66,25 @@ class SubscriptionsController < ApplicationController
     redirect_to account_path
   end
 
-  # One-click unsubscribe from an email link — token-authed, no login, idempotent.
+  # One-click unsubscribe from a single-bird alert — token-authed, no login, idempotent.
+  # A GET (the link in the email body) shows the confirmation page; a POST (a mailbox
+  # provider's one-click, List-Unsubscribe-Post) just needs a 2xx.
   def unsubscribe
-    @subscription = Subscription.find_by(token: params[:token])
-    @subscription&.update(active: false)
+    sub = Subscription.find_by(token: params[:token])
+    sub&.update(active: false)
+    @unsubscribed = sub.present?
+    head :ok if request.post?
+  end
+
+  # One-click unsubscribe from the daily letter — per-user token, so it drops the reader
+  # out of the letter entirely (roundup + any digesting follow), without unfollowing.
+  def unsubscribe_letter
+    user = User.find_by(letter_token: params[:token])
+    user&.unsubscribe_from_letter!
+    @unsubscribed = user.present?
+    return head :ok if request.post?
+
+    render :unsubscribe
   end
 
   private

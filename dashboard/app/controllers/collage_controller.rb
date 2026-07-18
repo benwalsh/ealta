@@ -68,6 +68,14 @@ class CollageController < ApplicationController
   def load_station
     now = Time.current
     @updated_at = now
+    # The panel's stamp is coarsened to the half hour ON PURPOSE. The shooter skips the refresh
+    # when the rendered image is byte-identical (shoot.py hashes the screenshot), and the
+    # Impression has no partial update — every push is a full ~30–40s flash. A minute-precise
+    # clock would differ on every 5-minute cycle and force that flash ~288 times a day to say
+    # nothing new. At half-hour resolution the image holds still unless something real changes,
+    # and a stopped station is still obvious at a glance.
+    @printed_at = now.change(min: now.min < 30 ? 0 : 30, sec: 0)
+    @printed_on = TodayCard.stamp_date(@printed_at)
     # The collage is a FROZEN daily edition — the day's flock packed once and held, so the
     # panel reads like a printed field-guide plate, not a churning dashboard. New birds land
     # only in the live line below; tomorrow brings a fresh plate. Cached by the Dublin date
@@ -75,15 +83,21 @@ class CollageController < ApplicationController
     edition = Rails.cache.fetch("station-edition-#{now.to_date}", expires_in: 26.hours) do
       Detection.tally_within(current_window)
     end
-    @collage = CollagePresenter.new(edition, width: 452, height: 600, top_inset: 4, bottom_inset: 4,
+    # Sized to the plate box the four-zone panel leaves (480×800 less the padding, the news
+    # line, the almanac bar and the footer), so the flock fills it rather than floating in it.
+    @collage = CollagePresenter.new(edition, width: 428, height: 578, top_inset: 4, bottom_inset: 4,
                                              margin: 6, x_bias: 0.82, y_bias: 1.0)
     @species_today = Detection.tally_for.size
     @arrival = latest_arrival
     @status = station_status(now)
-    # The footer is a subset of the home page's ambient almanac — the same bilingual
-    # line-icon readings — not a parallel set of the panel's own. Place already sits in
-    # the header, so drop that one item to avoid saying it twice.
-    @almanac = TodayCard.almanac.reject { |item| item[:icon] == 'ti-map-pin' }
+    # The panel's bar is the simplified almanac — temperature, moon, sunrise, sunset — as four
+    # marks read at a glance. Place is dropped (self-evident on the wall it hangs on), but the
+    # TIDE gets its own line rather than being squeezed in: this is the device actually in the
+    # house on the coast, and the turning point names the local beach, which no other surface
+    # tells you.
+    items = TodayCard.almanac.reject { |item| item[:icon] == 'ti-map-pin' }
+    @tide = items.find { |item| item[:icon] == 'ti-ripple' }
+    @almanac = items - [@tide].compact
   end
 
   # The most recent species to make its FIRST appearance today, with that time — the one

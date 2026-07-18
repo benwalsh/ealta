@@ -14,8 +14,8 @@ RSpec.describe Subscription do
   end
 
   it 'delegates email to the user' do
-    sub = create(:subscription, user: create(:user, email: 'station@example.com'))
-    expect(sub.email).to eq('station@example.com')
+    sub = create(:subscription, user: create(:user, email: 'watcher@example.com'))
+    expect(sub.email).to eq('watcher@example.com')
   end
 
   describe 'scopes' do

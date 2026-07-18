@@ -40,33 +40,26 @@ export interface Account {
 // Times as ISO strings, plus the station-language block for the wall-language control.
 export interface AdminHealth {
   listening: {
-    last_heard_at: string | null
-    last_heard_ago: number | null
-    last_alive_at: string | null
-    last_alive_ago: number | null
     freshness: 'fresh' | 'quiet' | 'stale' | 'none'
-    last_species: { sci: string; en: string; ga: string | null } | null
+    last_alive_at: string | null
+    last_heard_at: string | null
+    last_species: { en: string; ga: string | null } | null
     detections_today: number
-    detections_all_time: number
     species_today: number
-    species_all_time: number
+    // False where restarting can't work (no systemctl / unit) — the control is hidden.
+    restartable: boolean
   }
   alerts: {
     configured: boolean
     from: string | null
-    following: number
-    standing_rules: number
-    events_total: number
     events_pending: number
-    last_event: { type: string; name: string; at: string } | null
   }
-  system: {
-    env: string
-    adapter: string
-    site_url: string | null
-    llm_region: string | null
-    backup: { configured: boolean; bucket: string | null }
-  }
+  // Where and when the daily letter actually goes out. sends_here is false on the Pi/dev,
+  // where not sending is by design rather than a fault.
+  // `readers` is how many people the letter reaches — the number a broadcast must be
+  // confirmed against, so the last act before sending is reading how many.
+  letter: { sends_here: boolean; at: string; zone: string; readers: number }
+  backup: { configured: boolean; bucket: string | null; expected: boolean }
   station: {
     language: string
     options: { code: string; name: string }[]
@@ -179,11 +172,11 @@ export interface Bilingual {
   en: string
   ga: string
 }
+// Where the mic was down, as an x-span. Nothing is drawn over it — the curve simply breaks
+// there — so the band carries no label any more; `offline` / `mic_hours` say it in words.
 export interface SparkGap {
   x0: number
   x1: number
-  label: Bilingual
-  short: Bilingual
 }
 export interface SparkPaths {
   path: string
@@ -201,6 +194,11 @@ export interface FooterItem {
   icon: string
   en: string
   ga: string
+  // The moon draws its real phase rather than a fixed glyph: `svg` is the SHADOW (the unlit
+  // part), computed in Ruby (MoonPhase#shadow) — ink is dark, so inking the lit part would
+  // draw a negative. Absent on every other reading, and null at full moon (nothing dark), when
+  // only the outline circle is drawn.
+  svg?: string | null
 }
 export interface Today {
   date_label: Bilingual
@@ -243,10 +241,40 @@ export interface JournalDay {
   summary: { en: string[]; ga: string[] }
   source: 'llm' | 'facts' | 'template' | null
   sources: { host: string; url: string }[]
+  // The keeper's own line for the day, set apart from the narration. The letter carries the
+  // same note — they are the same words. null on almost every day.
+  note: string | null
   // The day's 24h activity curve, rendered stilled (greyscale) — the finished day's shape.
+  // Hours the mic was down are shown by absence: the line breaks, and a wholly uncovered day
+  // draws no path at all.
   sparkline: SparkPaths | null
-  // The day in Irish tradition — a curated feast/quarter-day or the Celtic season.
-  day_lore: { title: Bilingual; gloss: Bilingual; kind: string } | null
+  // True when the station was down for most of the day — a zero-detection day reads as offline,
+  // not as a genuinely quiet one.
+  offline: boolean
+  // How many of the day's 24 hours the mic was actually listening (heartbeat or a detection proves
+  // the hour live). Lets a zero-detection day say how long it listened rather than blur silence with
+  // a dead mic. null when coverage is unknown (an old day past heartbeat retention).
+  mic_hours: number | null
+  // The day in Irish tradition — a curated feast/quarter-day or the Celtic season, with an optional
+  // curated deep dive (a longer bilingual passage + citations) when the station supplies one.
+  day_lore: {
+    title: Bilingual
+    gloss: Bilingual
+    kind: string
+    lore: Bilingual | null
+    sources: { host: string; url: string }[]
+  } | null
+  // The day's hero — a short deep dive on the featured bird: its sourced Wikipedia summary.
+  // The bundle's fact blocks are deliberately NOT here: they are what the day's narration is
+  // written from, so listing them under it repeated the same material in a flatter voice.
+  // Folklore is the set-apart coda quote. Null on a quiet day.
+  hero: {
+    sci: string
+    en: string
+    ga: string | null
+    description: string | null
+    description_ga: string | null
+  } | null
   notable: NotableGroups
   // The day's closing quotes, each set apart with its credit: the curated literary
   // lore (poem/tale) and any sourced folklore (dúchas etc.) — never woven into prose.
@@ -255,6 +283,9 @@ export interface JournalDay {
     text: string
     text_ga?: string | null
     attribution: string | null
+    // The full citation when there is one (dúchas carries rights-holder + licence deed + collector),
+    // so the coda can link the reference and the licence rather than show a bare string.
+    source?: EnrichmentSource | null
     sci: string
     en: string
     ga: string | null
@@ -283,7 +314,15 @@ export interface Overview {
 
 export interface EnrichmentSource {
   host: string | null
-  url: string
+  // null for the station's own seed folklore, which cites an attribution rather than a link.
+  url: string | null
+  // Present on a dúchas (Schools' Collection) citation: the rights-holder, the licence and its
+  // deed link, and the collector who recorded the lore — so we render the exact attribution its
+  // CC BY-NC 4.0 terms require. Absent on literary/plain credits.
+  holder?: string | null
+  licence?: string | null
+  licence_url?: string | null
+  collector?: string | null
 }
 export type EnrichmentKind = 'fact' | 'regional_note' | 'folklore' | 'station_reading'
 export interface EnrichmentBlock {

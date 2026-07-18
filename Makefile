@@ -5,7 +5,7 @@ SHELL := /bin/bash
 
 POSES ?= 1
 
-.PHONY: help setup new-station serve dev listen analyze regen restyle cutout declutter masks build doctor armcheck test lint
+.PHONY: help setup new-station serve dev listen analyze regen restyle cutout declutter masks webp build doctor armcheck test lint
 
 help:  ## list the available tasks
 	@grep -hE '^[a-z][a-zA-Z-]*:.*##' $(MAKEFILE_LIST) | sed -E 's/:.*## / — /' | sort
@@ -61,6 +61,7 @@ regen:  ## generate bird art into the profile. GEMINI_API_KEY set → kachō-e v
 	  uv run python pipeline/scripts/flatgen.py "$${sel[@]}" --force
 	fi
 	uv run python pipeline/scripts/build_masks.py
+	uv run python pipeline/scripts/build_web_variants.py
 
 cutout:  ## flood-cut any cream-ground illustrations to transparent
 	uv run python pipeline/scripts/cutout_flood.py
@@ -68,9 +69,13 @@ cutout:  ## flood-cut any cream-ground illustrations to transparent
 declutter:  ## sweep stray flecks ("smudges") from existing cutouts, then rebuild masks
 	uv run python pipeline/scripts/cutout_flood.py --declutter
 	uv run python pipeline/scripts/build_masks.py
+	uv run python pipeline/scripts/build_web_variants.py
 
 masks:  ## rebuild collage silhouette masks (run after changing the illustration set)
 	uv run python pipeline/scripts/build_masks.py
+
+webp:  ## render small WebP variants of the illustrations for the website (upload with the PNGs)
+	uv run python pipeline/scripts/build_web_variants.py
 
 restyle:  ## redraw the whole Irish library in the current prompt style, then cut + remask  (POSES="1 2" adds flight)
 	set -a; source .env; set +a; \
@@ -78,7 +83,8 @@ restyle:  ## redraw the whole Irish library in the current prompt style, then cu
 	echo "restyling $$(grep -c . /tmp/irish-labels.txt) Irish species (poses $(POSES))..."; \
 	uv run python pipeline/scripts/pregen.py --labels /tmp/irish-labels.txt --poses $(POSES) --force && \
 	uv run python pipeline/scripts/cutout_flood.py && \
-	uv run python pipeline/scripts/build_masks.py
+	uv run python pipeline/scripts/build_masks.py && \
+	uv run python pipeline/scripts/build_web_variants.py
 
 frame-preview:  ## dither /station to a PNG to inspect the e-ink look (no hardware)
 	set -a; source .env; set +a; \

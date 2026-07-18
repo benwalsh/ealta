@@ -29,7 +29,7 @@ class Bedrock
     end
 
     # Has this station opted into the LLM? Opt-in is `llm:` in station.yml (the Devise-style
-    # services config) or the BEDROCK_REGION / BEDROCK_MODEL_ID envs (yourstation sets those on
+    # services config) or the BEDROCK_REGION / BEDROCK_MODEL_ID envs (a station may set those on
     # the ECS task). A fresh clone sets neither, so LLM-optional callers take their no-model
     # path — enrichment falls back to raw Wikipedia summaries, the "today" note to its
     # template — rather than dialling Bedrock with no credentials. This is what makes the

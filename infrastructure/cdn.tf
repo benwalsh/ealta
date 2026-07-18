@@ -42,9 +42,10 @@ resource "aws_acm_certificate_validation" "cf" {
   }
 }
 
-# Cache key: path + the only query params the app reads; cookies ignored so
-# anonymous public pages cache well. (Auth/session tuning is a later refinement —
-# the Pi's push goes straight to App Runner, not through CloudFront.)
+# Cache key: path + the only query params the app reads; cookies ignored so anonymous static
+# assets cache well. This policy now backs ONLY the static asset prefixes (/assets, /vite, /birds)
+# — the dynamic default (/, /api/*) is CachingDisabled so the session cookie is honoured and
+# sign-in state is never cached. (The Pi's push goes straight to the origin, not through CloudFront.)
 resource "aws_cloudfront_cache_policy" "app" {
   name        = "${var.station_name}-app"
   default_ttl = 300
@@ -104,14 +105,36 @@ resource "aws_cloudfront_distribution" "main" {
     }
   }
 
+  # The DEFAULT is dynamic: the SPA host page (/ carries the signed-in bootstrap blob) and the JSON
+  # API (/api/* is per-user) must NOT be cached and must carry cookies both ways. Cached cookie-blind
+  # (the old default), a signed-in visitor was served a stale anonymous / — header stuck on "Sign in"
+  # — and a signed-in page could leak to the next visitor. Only the static asset prefixes below opt
+  # back into the app cache.
   default_cache_behavior {
     target_origin_id         = "ecs"
     viewer_protocol_policy   = "redirect-to-https"
     allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
     cached_methods           = ["GET", "HEAD"]
     compress                 = true
-    cache_policy_id          = aws_cloudfront_cache_policy.app.id
+    cache_policy_id          = data.aws_cloudfront_cache_policy.disabled.id
     origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer_except_host.id
+  }
+
+  # Static, cacheable, cookie-independent: the Rails asset pipeline (/assets), the Vite production
+  # bundle (/vite) and the bird illustrations (/birds). These keep the app cache policy so the CDN
+  # still absorbs their load; nothing here depends on the session.
+  dynamic "ordered_cache_behavior" {
+    for_each = toset(["/assets/*", "/vite/*", "/birds/*"])
+    content {
+      path_pattern             = ordered_cache_behavior.value
+      target_origin_id         = "ecs"
+      viewer_protocol_policy   = "redirect-to-https"
+      allowed_methods          = ["GET", "HEAD", "OPTIONS"]
+      cached_methods           = ["GET", "HEAD"]
+      compress                 = true
+      cache_policy_id          = aws_cloudfront_cache_policy.app.id
+      origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer_except_host.id
+    }
   }
 
   # Auth + authenticated pages must never be cached and must carry cookies both ways:
@@ -147,11 +170,17 @@ resource "aws_cloudfront_distribution" "main" {
 }
 
 # Point the domain (apex + www) at CloudFront.
+#
+# allow_overwrite: this stack is the sole owner of the zone's records, so adopt an
+# existing record rather than erroring on it. That makes the config self-healing if
+# state and the zone ever drift apart again (they did once — a replaced zone resource
+# left every record written to an orphan zone the registrar no longer pointed at).
 resource "aws_route53_record" "apex" {
-  for_each = toset(["A", "AAAA"])
-  zone_id  = aws_route53_zone.main.zone_id
-  name     = var.domain_name
-  type     = each.value
+  for_each        = toset(["A", "AAAA"])
+  zone_id         = aws_route53_zone.main.zone_id
+  name            = var.domain_name
+  type            = each.value
+  allow_overwrite = true
   alias {
     name                   = aws_cloudfront_distribution.main.domain_name
     zone_id                = aws_cloudfront_distribution.main.hosted_zone_id
@@ -160,10 +189,11 @@ resource "aws_route53_record" "apex" {
 }
 
 resource "aws_route53_record" "www" {
-  for_each = toset(["A", "AAAA"])
-  zone_id  = aws_route53_zone.main.zone_id
-  name     = "www.${var.domain_name}"
-  type     = each.value
+  for_each        = toset(["A", "AAAA"])
+  zone_id         = aws_route53_zone.main.zone_id
+  name            = "www.${var.domain_name}"
+  type            = each.value
+  allow_overwrite = true
   alias {
     name                   = aws_cloudfront_distribution.main.domain_name
     zone_id                = aws_cloudfront_distribution.main.hosted_zone_id

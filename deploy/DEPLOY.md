@@ -99,6 +99,25 @@ journalctl -u ealta-frame -f      # watch panel pushes
 - `uv run python shooter/shoot.py --preview /tmp/f.png` then `eog /tmp/f.png` — check the `/station` look before pushing to glass.
 - Drop the preview and run `shooter/shoot.py` for real; tune `--rotate` (how the frame hangs) and `--saturation` on the actual panel — colours and dithering differ from the preview, so do a final pass on the glass.
 
+## AWS credentials (a static key, not SSO)
+
+For dev you can `aws sso login` on the Pi, but the wall device runs unattended for
+months and an SSO session expires — so give it a **static, least-privilege key**
+instead. `infrastructure/device.tf` provisions a dedicated IAM user scoped to exactly
+what the device does on its own (offsite backup, Bedrock summary, illustration read).
+After `tofu apply`, read the key and put it in `.env`:
+
+```bash
+cd infrastructure
+tofu output device_backup_bucket           # -> LITESTREAM_BUCKET
+tofu output -raw device_access_key_id       # -> LITESTREAM_ACCESS_KEY_ID + AWS_ACCESS_KEY_ID
+tofu output -raw device_secret_access_key   # -> LITESTREAM_SECRET_ACCESS_KEY + AWS_SECRET_ACCESS_KEY
+```
+
+The same pair covers Litestream (S3), the daily-summary Bedrock call, and
+`bin/sync-illustrations pull`. Stations that back up to Backblaze B2 or another non-AWS
+store skip `device.tf` and use that provider's own keys for `LITESTREAM_*`.
+
 ## Offsite backup (Litestream → S3/B2)
 
 The station Pi is unattended on flaky broadband, so the detection history is backed

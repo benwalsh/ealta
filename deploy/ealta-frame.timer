@@ -1,10 +1,15 @@
 [Unit]
-Description=Advance the Inky station gallery every five minutes
+Description=Redraw the Inky station panel every fifteen minutes
 
 [Timer]
 OnBootSec=45
-OnUnitActiveSec=5min
-AccuracySec=5s
+# Fifteen minutes, not five. The Impression has NO partial refresh — every push repaints all
+# 480×800 in a ~30-40s flashing colour cycle — and the panel is a printed broadside whose
+# plate is frozen for the day, so waking more often mostly reprints the same image. The
+# shooter also skips the push when the render is byte-identical (shoot.py hashes it), so at
+# this cadence the panel repaints only when something has actually changed.
+OnUnitActiveSec=15min
+AccuracySec=30s
 
 [Install]
 WantedBy=timers.target

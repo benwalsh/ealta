@@ -14,8 +14,8 @@ output "cloudfront_domain" {
 }
 
 output "illustrations_base_url" {
-  description = "Base URL for the bird illustrations CDN. Feeds ILLUSTRATIONS_BASE_URL on the ECS task; the Pi's bin/sync-illustrations pulls from the bucket behind it."
-  value       = "https://${aws_cloudfront_distribution.illustrations.domain_name}"
+  description = "Base URL for the bird illustrations CDN (the vanity domain). Feeds ILLUSTRATIONS_BASE_URL on the ECS task; the collage links <base>/<slug>.webp directly. The Pi's bin/sync-illustrations pulls from the bucket behind it."
+  value       = "https://${local.illustrations_domain}"
 }
 
 output "ecs_service_url" {
@@ -52,4 +52,21 @@ output "alerts_from_address" {
 output "github_deploy_role_arn" {
   description = "Role the GitHub Actions deploy workflow assumes via OIDC."
   value       = aws_iam_role.github_deploy.arn
+}
+
+output "device_backup_bucket" {
+  description = "Set as LITESTREAM_BUCKET on the Pi (the offsite DB backup target)."
+  value       = aws_s3_bucket.backup.id
+}
+
+output "device_access_key_id" {
+  description = "Static key for the Pi's .env — LITESTREAM_ACCESS_KEY_ID and AWS_ACCESS_KEY_ID."
+  value       = aws_iam_access_key.device.id
+  sensitive   = true
+}
+
+output "device_secret_access_key" {
+  description = "Static secret for the Pi's .env — LITESTREAM_SECRET_ACCESS_KEY and AWS_SECRET_ACCESS_KEY. Read with: tofu output -raw device_secret_access_key"
+  value       = aws_iam_access_key.device.secret
+  sensitive   = true
 }

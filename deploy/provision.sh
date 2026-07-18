@@ -144,8 +144,10 @@ else
   echo "  set TS_AUTHKEY in .env then: sudo tailscale up --ssh"
 fi
 
-# Pre-load both Wi-Fi networks so it associates wherever it boots (creds from
-# .env: HOME_WIFI_SSID/_PSK, STATION_WIFI_SSID/_PSK — gitignored, optional).
+# Pre-load both Wi-Fi networks so it associates wherever it boots: the one you provision it
+# on, and the one it will live on. Named by ROLE, never by place — this is the engine, and it
+# describes no particular house. Creds from .env (SETUP_WIFI_SSID/_PSK, STATION_WIFI_SSID/_PSK
+# — gitignored, both optional).
 say "Wi-Fi networks (NetworkManager)"
 add_wifi() { # name ssid psk
   [ -n "$2" ] || return 0
@@ -153,7 +155,7 @@ add_wifi() { # name ssid psk
   $SUDO nmcli connection add type wifi con-name "$1" ssid "$2" \
     wifi-sec.key-mgmt wpa-psk wifi-sec.psk "$3" connection.autoconnect yes
 }
-add_wifi home    "${HOME_WIFI_SSID:-}"    "${HOME_WIFI_PSK:-}"
+add_wifi setup   "${SETUP_WIFI_SSID:-}"   "${SETUP_WIFI_PSK:-}"
 add_wifi station "${STATION_WIFI_SSID:-}" "${STATION_WIFI_PSK:-}"
 
 say "provisioning complete — http://$(hostname).local:4030/"

@@ -64,10 +64,15 @@ class Detection < ApplicationRecord
 
     # Sci_Names we trust enough to display, assessed over all time (a real
     # visitor stays credible even in a quiet window). See CREDIBLE_CONFIDENCE.
+    # A collage/journal render calls tally repeatedly, each re-scanning the whole
+    # detections table for the same all-time set; cache it briefly so one render
+    # pays for one scan. 30s keeps a newly-credible bird visible almost at once.
     def credible_species
-      group(:Sci_Name).
-        having('MAX(Confidence) >= :conf OR COUNT(*) >= :hits', conf: CREDIBLE_CONFIDENCE, hits: CREDIBLE_COUNT).
-        pluck(:Sci_Name).to_set
+      Rails.cache.fetch('detections/credible_species', expires_in: 30.seconds) do
+        group(:Sci_Name).
+          having('MAX(Confidence) >= :conf OR COUNT(*) >= :hits', conf: CREDIBLE_CONFIDENCE, hits: CREDIBLE_COUNT).
+          pluck(:Sci_Name).to_set
+      end
     end
 
     # One SpeciesTally per credible species in the relation, loudest-first.

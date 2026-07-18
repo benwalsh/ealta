@@ -19,12 +19,13 @@ RSpec.describe TodayCard do
     expect(last[:ga]).to eq(last[:en])
   end
 
-  it 'labels a no-data band with its real clock span and a compact duration, bilingual' do
-    start = now - 24.hours # 24 one-hour buckets
+  it 'passes a no-data band through as a bare x-span, with nothing to caption' do
+    # The band used to be painted as a grey slab with a "No data · 20:00–04:00" label over it.
+    # Nothing is drawn there now — the curve just breaks — so there is no label to build, and
+    # `offline` / `mic_hours` carry the fact in words instead.
+    start = now - 24.hours
     gaps = described_class.send(:gap_labels, [{ x0: 233.4, x1: 466.7, from: 8, to: 15 }], now, start)
-    expect(gaps.first).to include(x0: 233.4, x1: 466.7)
-    expect(gaps.first[:label]).to eq(en: 'No data · 20:00–04:00', ga: 'Gan sonraí · 20:00–04:00')
-    expect(gaps.first[:short]).to eq(en: 'No data · 8h', ga: 'Gan sonraí · 8h')
+    expect(gaps.first).to eq(x0: 233.4, x1: 466.7)
   end
 
   it 'labels a multi-day window as dates, with the Irish month for ga' do

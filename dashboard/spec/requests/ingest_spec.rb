@@ -102,4 +102,37 @@ RSpec.describe 'Ingest' do
       end
     end
   end
+
+  # Generate-on-detect: the station knows a species has arrived long before anyone clicks it,
+  # so the modal's content is prepared then rather than during someone's first click (which
+  # measured ~11s of Wikipedia + two sequential model calls).
+  describe 'preparing species content' do
+    around do |example|
+      ENV['CLOUD_INGEST_TOKEN'] = token
+      example.run
+      ENV.delete('CLOUD_INGEST_TOKEN')
+    end
+
+    it 'enqueues a job for each species that has no content yet' do
+      expect { ingest(rows) }.to have_enqueued_job(PrepareSpeciesContentJob).twice
+      expect(response).to have_http_status(:ok)
+    end
+
+    it 'skips a species whose content is already stored' do
+      # Only the magpie should be queued; the robin is already prepared.
+      SpeciesInfo.create!(sci_name: 'Erithacus rubecula', description: 'A robin.',
+                          fetched_at: Time.current, fetched_ga_at: Time.current,
+                          fetched_song_at: Time.current)
+      expect { ingest(rows) }.
+        to have_enqueued_job(PrepareSpeciesContentJob).with('Pica pica').exactly(:once)
+    end
+
+    it 'still stores the batch when queueing blows up' do
+      # The mirror copy is the point of the request; preparation is a nicety on top of it.
+      allow(SpeciesInfo).to receive(:missing_content).and_raise(StandardError, 'queue down')
+      ingest(rows)
+      expect(response).to have_http_status(:ok)
+      expect(Detection.count).to eq(2)
+    end
+  end
 end

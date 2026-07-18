@@ -78,7 +78,12 @@ class AdminHealth
   end
 
   def alerts
-    last = Event.order(created_at: :desc).first
+    # "Last event" is ordered by the day it HAPPENED (occurred_on), not by row-insert time — a
+    # backfilled row must never outrank a newer occurrence. This reads the Event log (fire-once
+    # alert records), the same source as all of notable (Live / journal / breaking strip); it's
+    # written by AlertEngine on /ingest, so it only advances where live ingest runs — a dev box
+    # with no push shows a stale last event, the device tracks reality.
+    last = Event.order(occurred_on: :desc, id: :desc).first
     {
       configured:     ENV['ALERTS_FROM'].present?,
       from:           ENV.fetch('ALERTS_FROM', nil),
@@ -86,7 +91,7 @@ class AdminHealth
       standing_rules: Subscription.active.where.not(alert_type: 'species').count,
       events_total:   Event.count,
       events_pending: Event.pending.count, # unsent backlog — should trend to 0
-      last_event:     last && { type: last.event_type, name: BirdName.lookup(last.sci_name).en, at: last.created_at }
+      last_event:     last && { type: last.event_type, name: BirdName.lookup(last.sci_name).en, at: last.occurred_on }
     }
   end
 

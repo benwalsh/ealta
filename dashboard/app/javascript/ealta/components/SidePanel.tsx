@@ -5,15 +5,25 @@ import { useEffect, type ReactNode } from 'react'
 // `body.modal-open` — but docks to the right instead of centring. It APPEARS with a
 // quiet opacity fade (never a slide), so the 24h sparkline stays the only moving thing.
 // `width` sets the weight: 'slim' for the account card, 'wide' for the admin console.
+//
+// The head is FIXED and only the body scrolls: the admin console is long enough that a
+// scrolling header would carry the close button off-screen, and an action's result banner
+// (pinned to the top of the body) would land above the fold where nobody sees it.
 export function SidePanel({
   title,
   width = 'slim',
   onClose,
+  onBack,
+  backLabel,
   children,
 }: {
   title: string
   width?: 'slim' | 'wide'
   onClose: () => void
+  // Optional parent surface. Admin is opened FROM the account panel, so without this its
+  // only exit is closing the lot — you'd have to reopen the avatar to get back.
+  onBack?: () => void
+  backLabel?: string
   children: ReactNode
 }) {
   useEffect(() => {
@@ -31,12 +41,19 @@ export function SidePanel({
       <div className="ed-panel-scrim" onClick={onClose} />
       <aside className={`ed-panel ed-panel--${width}`} role="dialog" aria-modal="true" aria-label={title}>
         <div className="ed-panel-head">
-          <h1 className="acct-h1">{title}</h1>
+          <div className="ed-panel-head-left">
+            {onBack && (
+              <button className="ed-panel-back" onClick={onBack}>
+                ← {backLabel}
+              </button>
+            )}
+            <h1 className="acct-h1">{title}</h1>
+          </div>
           <button className="ed-panel-close" aria-label="close" onClick={onClose}>
             ×
           </button>
         </div>
-        {children}
+        <div className="ed-panel-body">{children}</div>
       </aside>
     </div>
   )

@@ -34,6 +34,13 @@ class DailyFacts
   MAX_BLURBS = 2
   # Importance is the single integer the summary orders by; flags are metadata.
   NOTABLE_IMPORTANCE = 60
+  # Heartbeats prune to ~2 days, so a day older than this can't be assessed for coverage; its
+  # coverage is left unknown (nil → drawn as fully covered) rather than falsely painted offline.
+  COVERAGE_MAX_AGE_DAYS = 2
+  # Share of the elapsed day the recorder must have been up before a pace verdict
+  # ("quieter/busier than typical") means anything. Below this the count reflects the gap,
+  # not the birds, so DailyFacts makes no claim at all.
+  LISTENING_FOR_PACE = 0.9
   IMPORTANCE = {
     all_time_first:       100,
     all_time_first_young: 70,
@@ -150,7 +157,9 @@ class DailyFacts
       items:              list,
       spotlight:          spotlight(include_blurb: spotlight_blurb),
       activity_note:      activity_note,
+      listening:          listening,
       activity_curve_24h: activity_curve_24h,
+      coverage_24h:       coverage_24h,
       notable_today:      list.select { |i| i[:importance] >= NOTABLE_IMPORTANCE },
       station_age_days:   station_age_days
     }
@@ -318,9 +327,18 @@ class DailyFacts
 
   # Coarse label only — today's pace against a trailing same-time-of-day baseline.
   # The prompt turns the label into a phrase; the model never computes it.
+  #
+  # Silent when the recorder wasn't listening for the whole stretch. A day with the mic down
+  # for hours produces a low count for a reason that has nothing to do with how busy the birds
+  # were, and calling that "quieter than typical" states something the data does not support —
+  # the station simply wasn't there to hear it. Hours are also not interchangeable (losing the
+  # dawn chorus costs far more than losing mid-afternoon), so the gap can't be corrected for by
+  # scaling either; the only honest move is to make no pace claim. `listening` carries the
+  # coverage itself, so the narration can say what actually happened instead.
   def activity_note
     baseline = daily_baseline
     return nil unless baseline
+    return nil unless fully_listening?
 
     fraction = ((now.hour + 1) / 24.0)
     expected = baseline * fraction
@@ -331,6 +349,36 @@ class DailyFacts
     return :quieter_than_typical if ratio < 0.6
 
     :typical
+  end
+
+  # Was the recorder up for essentially the whole elapsed stretch? Unknown coverage (no ticks
+  # at all) counts as yes — that's the pre-heartbeat past, not evidence of a gap.
+  def fully_listening?
+    cover = listening
+    return true if cover.nil?
+
+    cover[:hours_live] >= (cover[:hours_elapsed] * LISTENING_FOR_PACE)
+  end
+
+  # How much of the day the mic → BirdNET loop was actually up: hours live out of hours
+  # elapsed. The stat every count on the page has to be read against — a low species count
+  # means one thing after a full day's listening and quite another after four hours of it.
+  # A heartbeat tick OR a detection proves an hour was live (same test as coverage_24h).
+  # nil when the station has never ticked, so a gap can't be told from an unmonitored past.
+  def listening
+    return @listening if defined?(@listening)
+
+    @listening = compute_listening
+  end
+
+  def compute_listening
+    return nil unless Heartbeat.exists?
+
+    elapsed = @date >= Date.current ? now.hour + 1 : 24
+    alive = Heartbeat.coverage(@date.in_time_zone.beginning_of_day, 3600, elapsed)
+    counts = activity_curve_24h
+    live = Array.new(elapsed) { |i| alive[i] || counts[i][:count].to_i.positive? }.count(true)
+    { hours_live: live, hours_elapsed: elapsed }
   end
 
   # Mean total detections per day over the trailing window (excluding today), or
@@ -352,6 +400,21 @@ class DailyFacts
       counts[hour] += 1 if hour
     end
     counts.each_index.map { |hour| { hour: hour, count: counts[hour] } }
+  end
+
+  # Was the mic → BirdNET loop up each hour of a COMPLETED day — 24 booleans — so the Journal can
+  # tell an offline stretch from a genuinely quiet one. A heartbeat tick OR a detection proves the
+  # hour was live. nil (unknown, drawn as fully covered) when: the day isn't finished yet; it's
+  # older than heartbeats are kept (they prune to ~2 days), so we can't assess it; or the station
+  # has never sent a tick. Computed at freeze time (00:15, ticks still fresh) and stored on the
+  # entry — never recomputed on a later read, when the ticks would be gone.
+  def coverage_24h
+    return nil if @date >= Date.current || @date < Date.current - COVERAGE_MAX_AGE_DAYS
+    return nil unless Heartbeat.exists?
+
+    alive = Heartbeat.coverage(@date.in_time_zone.beginning_of_day, 3600, 24)
+    counts = activity_curve_24h
+    Array.new(24) { |i| alive[i] || counts[i][:count].positive? }
   end
 
   def hour_of(value)

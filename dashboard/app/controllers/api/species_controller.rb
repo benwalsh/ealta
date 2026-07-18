@@ -18,10 +18,11 @@ module Api
         description_ga: SpeciesInfo.irish_for(sci, name.ga),
         song: SongSample.url_for(sci),
         recent: recent.map { |d| { at: d.heard_at&.iso8601, confidence: d.confidence.to_f } },
-        # The latest fact + folklore, if a bundle has been sourced for this bird. Nil
-        # otherwise — the card then offers a signed-in viewer an on-demand look-up
-        # (EnrichmentController), so facts stay reachable regardless of the daily backoff.
-        enrichment: EnrichmentBundle.current(sci)&.to_display
+        # The bird's facts + folklore: the latest sourced bundle merged with the station's own
+        # seed folklore (bird_lore.yml), one uniform list. Nil when there's neither — the card
+        # then offers a signed-in viewer an on-demand look-up (EnrichmentController), so facts
+        # stay reachable regardless of the daily backoff.
+        enrichment: EnrichmentBundle.display_for(sci)
       }
     end
 

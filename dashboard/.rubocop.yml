@@ -349,3 +349,12 @@ Style/StringConcatenation:
 
 Style/TernaryParentheses:
   Enabled: false
+
+# `cloud` is a real environment (config/environments/cloud.rb) — the public mirror on RDS.
+# Without this, every Rails.env.cloud? reads as a typo to the cop.
+Rails/UnknownEnv:
+  Environments:
+    - development
+    - test
+    - production
+    - cloud

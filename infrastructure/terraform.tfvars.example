@@ -10,3 +10,6 @@ github_repository = "you/yourstation"       # your fork, for the OIDC deploy rol
 
 # google_client_id     = "…"
 # google_client_secret = "…"
+
+# Who can reach the unlinked /admin panel (comma-separated). Unset = no admins.
+# admin_emails = "you@example.com"

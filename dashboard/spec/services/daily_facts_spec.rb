@@ -151,4 +151,61 @@ RSpec.describe DailyFacts do
       expect(described_class.station_age_days(now: now)).to eq(0)
     end
   end
+
+  describe '#coverage_24h — was the mic up each hour' do
+    let(:day) { Date.new(2026, 7, 2) } # yesterday, within heartbeat retention
+
+    def coverage(date)
+      described_class.new(date: date, now: date.end_of_day).to_h[:coverage_24h]
+    end
+
+    it 'is nil when the station has never sent a heartbeat (unknown → drawn as covered)' do
+      expect(coverage(day)).to be_nil
+    end
+
+    it 'marks an hour up when it had a heartbeat OR a detection, down otherwise' do
+      Heartbeat.create!(at: Time.zone.local(2026, 7, 2, 3, 30))
+      create(:detection, Sci_Name: 'Turdus merula', Com_Name: 'Blackbird', Confidence: 0.9,
+                         Date: '2026-07-02', Time: '05:00:00')
+
+      result = coverage(day)
+      expect(result.length).to eq(24)
+      expect(result[3]).to be(true)  # a heartbeat
+      expect(result[5]).to be(true)  # a detection also proves the loop was live
+      expect(result[0]).to be(false) # neither → down
+    end
+
+    it 'is nil for a day older than heartbeats are kept, and for an unfinished today' do
+      Heartbeat.create!(at: Time.zone.local(2026, 7, 2, 3, 30))
+      expect(coverage(Date.new(2026, 6, 1))).to be_nil # pruned — can't assess
+      expect(coverage(today)).to be_nil                # not a finished day
+    end
+  end
+
+  describe 'listening coverage' do
+    # The station being DOWN and the birds being quiet produce the same low count, and only
+    # one of them is a fact about birds. Calling a gap "quieter than usual" is the failure
+    # that matters most here, so the pace verdict is withheld when coverage is incomplete.
+    def facts_with(live:, elapsed:)
+      facts = described_class.new(date: Date.current)
+      facts.define_singleton_method(:listening) { { hours_live: live, hours_elapsed: elapsed } }
+      facts.define_singleton_method(:daily_baseline) { 100.0 }
+      facts.define_singleton_method(:detections_today) { 10 }
+      facts
+    end
+
+    it 'makes no pace claim when the recorder missed part of the day' do
+      expect(facts_with(live: 7, elapsed: 18).send(:activity_note)).to be_nil
+    end
+
+    it 'still judges pace when the recorder was up throughout' do
+      expect(facts_with(live: 18, elapsed: 18).send(:activity_note)).not_to be_nil
+    end
+
+    it 'treats never-having-ticked as unknown rather than as a gap' do
+      facts = described_class.new(date: Date.current)
+      facts.define_singleton_method(:listening) { nil }
+      expect(facts.send(:fully_listening?)).to be(true)
+    end
+  end
 end

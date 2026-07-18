@@ -44,38 +44,67 @@ RSpec.describe 'Panel' do
       expect(response.body).not_to include('stat-grid')
     end
 
-    # The plate is a frozen daily edition; the day's growth shows only in the live line —
-    # the running species count and the most recent arrival with its time.
-    it 'shows the running species count and the most recent arrival' do
-      Station.language = :en
+    # Four zones and nothing else: the plate, one piece of news, the almanac bar with the
+    # tide, and the footer. Anything else is spending pixels the 480x800 panel hasn't got.
+    it 'is four zones — plate, news, almanac bar with the tide, and the footer line' do
       get '/station'
-      expect(response.body).to include('1 species today')
-      expect(response.body).to match(/\+ European Robin at \d{2}:\d{2}/)
+      ['class="plate"', 'class="news"', 'class="bar"', 'class="tide"', 'class="foot-line"'].each do |zone|
+        expect(response.body).to include(zone), "expected the panel to carry #{zone}"
+      end
     end
 
-    # An honest "updated" stamp + a listening status marker — NOT a live clock.
-    it 'stamps when it was updated and shows the recorder status, not a clock' do
-      Station.language = :en
+    # The masthead was the most expensive thing on the screen, and the panel hangs on a wall
+    # in the house it belongs to — it does not need to introduce itself.
+    it 'carries no wordmark' do
       get '/station'
-      expect(response.body).to include('class="status"')
-      expect(response.body).to match(/updated \d{2}:\d{2}/)
-      expect(response.body).to include('listening')          # a recent detection → alive
-      expect(response.body).not_to include('class="clock"')  # the live clock is gone
+      expect(response.body).not_to include('class="wordmark"')
     end
 
-    # With nothing heard today, the arrival line rests in the listening state.
+    # The plate is a frozen daily edition, so the news line is the only thing that moves:
+    # the day's most recent FIRST arrival, with its time.
+    it "leads with the day's most recent arrival and its time" do
+      Station.language = :en
+      get '/station'
+      expect(response.body).to include('class="news-name">European Robin')
+      expect(response.body).to match(/class="news-when">\s*\d{2}:\d{2}/)
+    end
+
+    # Before the first bird — every night after midnight, often for hours — "0 species today"
+    # is true but a bleak thing to hang on a wall, so the panel says what it is doing.
     it 'rests in the listening state before anything is heard' do
       Detection.delete_all
       get '/station'
       expect(response.body).to include('ag éisteacht') # Irish by default
     end
 
+    # An honest stamp of when this impression was taken — date AND time, since a time alone
+    # can't tell you whether the panel froze an hour ago or a week ago. Not a live clock.
+    it 'stamps the impression with a date and a time, not a clock' do
+      Station.language = :en
+      get '/station'
+      expect(response.body).to include('class="stamp"')
+      expect(response.body).to match(/29 June · \d{2}:\d{2}/)
+      expect(response.body).not_to include('class="clock"')
+    end
+
+    # Coarsened to the half hour ON PURPOSE: the shooter skips the push when the render is
+    # byte-identical, and the Impression has no partial refresh — a minute-precise clock would
+    # force a full ~30-40s flash on every cycle to say nothing new.
+    it 'coarsens the stamp to the half hour so an unchanged panel is not reprinted' do
+      travel_to Time.zone.local(2026, 6, 29, 9, 47) do
+        get '/station'
+        expect(response.body).to include('29 June · 09:30')
+      end
+    end
+
     # The panel speaks ONE language throughout — the admin-set one, never mixed.
     it 'renders every string in the configured language' do
       Station.language = :en
       get '/station'
-      expect(response.body).to include('species today').and include('updated').and include('see more at')
+      expect(response.body).to match(/(High|Low) tide/)          # the tide names its point in English
       expect(response.body).not_to include('speiceas inniu')
+      expect(response.body).not_to include('Lán mara')           # …and never in Irish alongside it
+      expect(response.body).not_to include('Lag trá')
     end
   end
 

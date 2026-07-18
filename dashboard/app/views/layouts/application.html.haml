@@ -7,6 +7,9 @@
   %head
     %title= content_for(:title) || Station.site_name
     %meta{ name: "viewport", content: "width=device-width,initial-scale=1,viewport-fit=cover" }
+    -# The station's favicon (its mark), streamed from the profile — same source the SPA uses.
+    %link{ rel: "icon", type: "image/png", href: station_brand_path('favicon') }
+    %link{ rel: "apple-touch-icon", type: "image/png", href: station_brand_path('favicon') }
     = csrf_meta_tags
     = csp_meta_tag
     = yield :head

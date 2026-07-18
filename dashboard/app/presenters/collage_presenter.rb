@@ -199,8 +199,30 @@ class CollagePresenter
     Zlib.crc32("flip:#{sci.downcase.tr(' ', '-')}@#{Date.current}").odd?
   end
 
+  # The illustration URL for a slug. In the cloud — where the art lives on a CDN
+  # (ILLUSTRATIONS_BASE_URL) — we point straight at the pre-sized `<slug>.webp` the
+  # pipeline renders alongside each PNG (build_web_variants.py): a plain ~40 KB file
+  # at a stable URL that just resolves, with no half-megabyte PNG and no 302 hop
+  # through the Rails /birds/<slug> redirect. Off the CDN (dev, and the Pi serving its
+  # own SD-card art to the e-ink shooter) we keep the local /birds path at full PNG
+  # quality — the shooter wants the original, and no WebP variant is synced there.
   def illustration_url(slug)
-    slug && "/birds/#{slug}.png?v=#{illustration_version}"
+    return nil unless slug
+
+    if illustrations_cdn
+      "#{illustrations_cdn}/#{slug}.webp?v=#{illustration_version}"
+    else
+      "/birds/#{slug}.png?v=#{illustration_version}"
+    end
+  end
+
+  # The CDN base for illustrations (ILLUSTRATIONS_BASE_URL / station.yml), trailing
+  # slash trimmed — or nil when the art is served locally. Memoised: fixed per process.
+  def illustrations_cdn
+    return @illustrations_cdn if defined?(@illustrations_cdn)
+
+    base = Station.setting('illustrations.base_url', env: 'ILLUSTRATIONS_BASE_URL')
+    @illustrations_cdn = base.presence&.chomp('/')
   end
 
   # One cache-busting stamp for every illustration URL: the mtime of masks.json, rebuilt

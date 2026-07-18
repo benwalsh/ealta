@@ -460,6 +460,52 @@ body:has(.acct) { overflow-y: auto; overflow-x: hidden; height: auto; min-height
 .adm-danger { color: var(--red); border-color: var(--red); }
 .adm-danger:hover:not(:disabled) { border-color: var(--red); }
 
+/* The console: a quiet section rail beside the pane, so the panel is a set of short
+   surfaces rather than one long scroll. */
+.adm-console { display: grid; grid-template-columns: 136px minmax(0, 1fr); gap: 26px; }
+.adm-nav { display: flex; flex-direction: column; gap: 2px; }
+.adm-nav-item {
+  background: transparent; border: 0; text-align: left; cursor: pointer;
+  padding: 7px 10px; border-radius: 6px;
+  font: 10px var(--mono); letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink-soft); transition: color 140ms ease, background 140ms ease;
+}
+.adm-nav-item:hover { color: var(--ink); }
+.adm-nav-item.is-on { color: var(--ink); background: var(--paper-2); }
+.adm-pane > :first-child { margin-top: 0; }
+.adm-pane .acct-h2 { margin-top: 0; }
+
+/* One control per field: name, a line of sense, then the control — parted by hairlines so a
+   pane reads as a short list of things you can do rather than stacked paragraphs. */
+.adm-field + .adm-field { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--rule); }
+.adm-field-label { margin: 0; font-size: 15px; color: var(--ink); }
+.adm-field-hint { margin: 5px 0 0; font-size: 13px; line-height: 1.5; color: var(--ink-soft); }
+.adm-field-control { margin-top: 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.adm-field-control .acct-select { flex: 0 1 auto; min-width: 150px; }
+/* The broadcast's subject takes the full width — it is a headline, not a field. */
+.adm-blast-subject { width: 100%; }
+/* The rendered email, shown in its own document so its inline styles stay out of the console. */
+.adm-blast-preview {
+  width: 100%; height: 320px; margin-top: 10px;
+  border: 1px solid var(--rule); border-radius: 8px; background: var(--paper);
+}
+
+/* A note is prose, so it gets a real box to write in rather than a one-line input. */
+.adm-note-box {
+  display: block; width: 100%; margin-top: 10px; resize: vertical;
+  font: 15px/1.6 var(--serif); color: var(--ink);
+}
+/* The row's own gap does the spacing; drop the sibling margin so grouped buttons don't drift. */
+.adm-field-control .acct-seg + .acct-seg { margin-left: 0; }
+
+/* Danger zone — set apart behind its own rule, in the GitHub idiom: you should have to mean
+   it. Restrained red: a hairline and a label, not a red slab. */
+.adm-zone { border: 1px solid var(--red); border-radius: 8px; padding: 16px 18px; }
+.adm-zone-h {
+  margin: 0 0 10px; font: 10px var(--mono); letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--red);
+}
+
 /* Delivery cadence — a quiet segmented control (Now / Digest / Off). */
 /* Delivery is a single checkbox now: ticked = on (in the daily letter / immediate),
    unticked = off. A quiet inked box, in keeping with the ink-on-paper voice. */
@@ -480,6 +526,9 @@ body:has(.acct) { overflow-y: auto; overflow-x: hidden; height: auto; min-height
 
 /* Admin health panel — a plain instrument read-out in the same restrained voice. */
 .adm-lead { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; color: var(--ink-2); margin: 0; }
+.adm-flash { margin: 0 0 18px; padding: 10px 14px; border-radius: 8px; font-size: 14px; border: 1px solid var(--rule); }
+.adm-flash.is-ok { color: var(--ink); background: var(--paper-2, transparent); }
+.adm-flash.is-alert { color: var(--red); border-color: var(--red); }
 .adm-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--ink-soft); }
 .adm-dot.fresh { background: var(--green); }
 .adm-dot.quiet { background: var(--amber); }
@@ -491,3 +540,38 @@ body:has(.acct) { overflow-y: auto; overflow-x: hidden; height: auto; min-height
 .adm-fig { font: 20px var(--mono); font-variant-numeric: tabular-nums; color: var(--ink); }
 .adm-lbl { font: 10px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); }
 .adm-warn { color: var(--amber); }
+
+/* Admin form controls — inked pill buttons + quiet inputs, in the same ink-on-paper voice as
+   the account page (mirrors .acct-btn / .acct-select). The maintenance/journal forms reuse
+   .acct-cadence, so give it a gap to breathe rather than jamming the input against the button. */
+.acct-cadence { gap: 8px; align-items: center; flex-wrap: wrap; }
+.acct-seg {
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+.acct-seg:hover { border-color: var(--ink); }
+.acct-seg.is-on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.acct-seg.adm-danger { color: var(--red); border-color: var(--red); }
+.acct-seg.adm-danger:hover { background: var(--red); color: var(--paper); border-color: var(--red); }
+.acct-cadence input {
+  font: inherit;
+  font-size: 13px;
+  padding: 8px 10px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+}
+.acct-cadence input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--ink);
+}
+.adm-mt { margin-top: 14px; }

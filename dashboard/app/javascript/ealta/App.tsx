@@ -81,7 +81,12 @@ export function App({ bootstrap }: { bootstrap: Bootstrap }) {
           {panel === 'account' && user && (
             <AccountPanel user={user} onClose={() => setPanel(null)} onOpenAdmin={() => setPanel('admin')} />
           )}
-          {panel === 'admin' && <AdminPanel onClose={() => setPanel(null)} />}
+          {panel === 'admin' && (
+            <AdminPanel
+              onClose={() => setPanel(null)}
+              onBack={user ? () => setPanel('account') : undefined}
+            />
+          )}
         </FollowProvider>
       </LangProvider>
     </QueryClientProvider>

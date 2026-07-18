@@ -115,21 +115,44 @@ body.ed {
 .ed-panel-root.is-open { opacity: 1; pointer-events: auto; }
 @media (prefers-reduced-motion: reduce) { .ed-panel-root { transition: none; } }
 .ed-panel-scrim { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.32); }
+/* The panel is a fixed head over a scrolling body — the admin console is long, and a
+   scrolling head would carry the close button away with it. */
 .ed-panel {
   position: relative; height: 100vh; margin-left: auto;
   width: min(100%, 460px);
   background: var(--paper); border-left: 1px solid var(--ink);
-  overflow-y: auto; padding: 26px 30px 60px;
+  display: flex; flex-direction: column; overflow: hidden;
   box-shadow: -30px 0 80px rgba(0, 0, 0, 0.14);
 }
 .ed-panel--wide { width: min(100%, 720px); }
-.ed-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.ed-panel-head {
+  flex: none; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  padding: 26px 30px 14px; border-bottom: 1px solid var(--rule); background: var(--paper);
+}
 .ed-panel-head .acct-h1 { margin: 0; }
+.ed-panel-head-left { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+/* The way back to the parent surface (Admin → Account), in the same quiet mono voice as the
+   old account page's "← <the station>" back link — a wayfinding mark, not a button. */
+.ed-panel-back {
+  align-self: flex-start; background: transparent; border: 0; padding: 0; cursor: pointer;
+  font: 11px var(--mono); letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-soft); transition: color 140ms ease;
+}
+.ed-panel-back:hover { color: var(--ink); }
+.ed-panel-body { flex: 1; overflow-y: auto; padding: 6px 30px 60px; }
+/* An action's result must be readable from wherever you clicked, so it rides the top of
+   the scrolling body rather than sitting at the head of a long document. */
+.ed-panel-body .adm-flash {
+  position: sticky; top: 6px; z-index: 2;
+  background: var(--paper);
+}
+/* A bare ink mark, not a plated circle — the same call the species modal already made
+   (see .modal-head .modal-close): the chrome read as heavier than anything around it. */
 .ed-panel-close {
-  flex: none; background: var(--paper-2); border: 0;
-  width: 30px; height: 30px; border-radius: 999px;
-  font: 16px/1 var(--mono); color: var(--ink); cursor: pointer;
-  box-shadow: inset 0 0 0 1px var(--rule);
+  flex: none; background: none; border: 0; box-shadow: none; border-radius: 0;
+  width: auto; height: auto; padding: 0 2px;
+  font: 20px/1 var(--mono); color: var(--ink-soft); cursor: pointer;
+  transition: color 140ms ease;
 }
 .ed-panel-close:hover { color: var(--ink); }
 /* Margin-dock: on a screen wide enough that the slim account panel clears the centred
@@ -261,9 +284,23 @@ body.ed {
 }
 .journal-fig-bird:hover { text-decoration-color: var(--ink-soft); }
 /* The day in Irish tradition — a quiet serif line under the dateline (curated feast / season). */
-.journal-daylore { margin: 0 0 20px; font: 14.5px var(--serif); font-style: italic; }
+/* The keeper's note for a day — the one place a person speaks directly in the journal, so it
+   is set apart behind a rule rather than folded into the narration. The letter renders the
+   same words the same way. */
+.journal-note { margin: 0 0 22px; padding-left: 16px; border-left: 2px solid var(--ink); }
+.journal-note-label {
+  margin: 0 0 5px; font: 10px var(--mono); letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--ink-soft);
+}
+.journal-note-body { margin: 0; font: 16px/1.65 var(--serif); color: var(--ink); white-space: pre-line; }
+
+.journal-daylore { margin: 0 0 20px; }
+.journal-daylore-line { margin: 0; font: 14.5px var(--serif); font-style: italic; }
 .journal-daylore-title { color: var(--ink); }
 .journal-daylore-gloss { color: var(--ink-soft); }
+/* The curated deep dive on the day's tradition — a quiet serif passage, the féilire's own voice. */
+.journal-daylore-lore { margin: 8px 0 0; font: 15px/1.7 var(--serif); color: var(--ink); }
+.journal-daylore-credit { margin: 6px 0 0; font: 11px var(--mono); letter-spacing: 0.02em; color: var(--ink-soft); }
 
 /* The closing lore — a poem or tale for one of the day's birds, set apart as a quiet quotation
    with a left rule; the credit (and a link to the bird's card) in muted mono beneath. */
@@ -276,6 +313,24 @@ body.ed {
   text-decoration: underline; text-underline-offset: 2px; text-decoration-color: var(--rule);
 }
 .journal-lore-bird:hover { color: var(--ink); }
+/* A folklore credit's links (dúchas reference + CC licence deed) sit in the muted mono line
+   like the bird link — quiet marks, not calls to action. */
+.journal-lore-credit a {
+  color: var(--ink-2); text-decoration: underline; text-underline-offset: 2px;
+  text-decoration-color: var(--rule);
+}
+.journal-lore-credit a:hover { color: var(--ink); }
+.lore-credit-collector { color: var(--ink-soft); }
+
+/* The hero deep dive — the day's featured bird, its sourced summary + cited facts. Quiet,
+   ink-on-paper; the name is the one accented, clickable mark. */
+.journal-hero { margin: 30px 0 4px; padding-top: 18px; border-top: 1px solid var(--rule); max-width: 640px; }
+.journal-hero-name {
+  background: none; border: 0; padding: 0; cursor: pointer; color: var(--ink);
+  font: 600 13px var(--mono); letter-spacing: 0.06em; text-transform: uppercase;
+}
+.journal-hero-name:hover { color: var(--accent); }
+.journal-hero-desc { margin: 10px 0 0; font: 16px/1.7 var(--serif); color: var(--ink); }
 
 /* The stilled day-shape curve + its simple hour ticks. */
 .journal-spark { margin: 4px 0 26px; }
@@ -309,19 +364,10 @@ body.ed {
 .today-spark-plot.is-muted .today-spark-line { stroke: var(--ink-soft); }
 .today-spark-plot.is-muted .today-spark-fill { display: none; }
 
-/* A blind spot (mic down): an explicit data-availability state, NOT a zero. A pale
-   neutral band over the real duration, with a centred "No data · 06:00–08:48" label
-   (an HTML overlay, so the stretched viewBox can't distort the type). The green series
-   stops before it and resumes after — the two are never connected. */
+/* A blind spot (mic down) is shown by ABSENCE: the curve stops and resumes, and a wholly
+   uncovered window draws no path at all. Nothing is painted over the gap — a break reads
+   as a break, and needs no label to say so. */
 .today-spark-plot { position: relative; }
-.today-spark-gap { fill: var(--ink-soft); opacity: 0.09; }
-.today-spark-gap-label {
-  position: absolute; top: 50%; transform: translateY(-50%);
-  display: flex; align-items: center; justify-content: center; text-align: center;
-  font: 11px var(--mono); letter-spacing: 0.02em; color: var(--ink-soft);
-  pointer-events: none; padding: 0 4px; box-sizing: border-box; line-height: 1.2;
-}
-.today-spark-gap-label .gap-short { display: none; }
 .today-anchors {
   position: relative; height: 16px; margin-top: 4px;
   font: 10.5px var(--mono); letter-spacing: 0.02em; color: var(--ink-soft);
@@ -338,6 +384,9 @@ body.ed {
 }
 .today-almanac li { display: inline-flex; align-items: center; gap: 7px; }
 .today-almanac .ti { font-size: 16px; color: var(--ink-soft); line-height: 1; }
+/* The moon reading is DRAWN (its real phase), not a glyph. Size it to the icon font it sits
+   beside and let it take the same currentColor, so the row stays one set of quiet marks. */
+.today-almanac .alm-moon { width: 16px; height: 16px; flex: none; }
 
 /* The station's live status, leading the almanac: a pulsing green dot when the mic→BirdNET
    loop is alive, a still red one when it's stalled. The pulse is the one motion the page
@@ -630,10 +679,6 @@ button.bird-card { width: 100%; background: transparent; cursor: pointer; font: 
   .today-spark { margin-top: 30px; }
   .today-spark-svg { height: 64px; }
   .today-anchors { font-size: 9.5px; }
-  /* On a phone the band is too narrow for a legible label, so drop the "No data" text
-     entirely — the pale band alone still reads as a gap. */
-  .today-spark-gap-label { display: none; }
-
   /* The almanac stacks — each reading on its own full row, complete and never
      clipped, the way the TODAY bird lines stack. */
   .today-almanac { flex-direction: column; gap: 11px; margin-top: 16px; }

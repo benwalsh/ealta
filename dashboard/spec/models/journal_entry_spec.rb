@@ -29,7 +29,8 @@ RSpec.describe JournalEntry do
       expect(described_class.for(Date.new(2026, 7, 9))).to be_nil
     end
 
-    it 'does not freeze a thin template narration, so a later view can retry into a real one' do
+    it 'leaves an outage day (detections but a thin template) unsaved, so a later view retries it' do
+      create(:detection, Sci_Name: 'Turdus merula', Com_Name: 'Blackbird', Confidence: 0.9, Date: yesterday)
       allow(DayNarrator).to receive(:narrate).and_return(narration.merge(source: 'template'))
       entry = described_class.for(yesterday)
 
@@ -37,10 +38,26 @@ RSpec.describe JournalEntry do
       expect(described_class.count).to eq(0)
     end
 
+    it 'freezes an empty day (no detections) even when template, to record whether it was offline' do
+      allow(DayNarrator).to receive(:narrate).and_return(narration.merge(source: 'template'))
+      entry = described_class.for(yesterday) # no detections created → will never narrate to more
+
+      expect(entry).to be_persisted
+      expect(entry.source).to eq('template')
+    end
+
     it 'narrates the requested completed day (end-of-day, so the day reads as finished)' do
       allow(DayNarrator).to receive(:narrate).and_return(narration)
       expect(DailyFacts).to receive(:for).with(date: yesterday, now: yesterday.end_of_day).and_call_original
       described_class.for(yesterday)
+    end
+
+    it 'freezes the day hero alongside the prose' do
+      create(:detection, Sci_Name: 'Pluvialis apricaria', Com_Name: 'European Golden Plover',
+                         Confidence: 0.9, Date: yesterday)
+      allow(DayNarrator).to receive(:narrate).and_return(narration)
+
+      expect(described_class.for(yesterday).hero_sci_name).to eq('Pluvialis apricaria')
     end
   end
 end

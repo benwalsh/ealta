@@ -12,9 +12,12 @@
 # and the engine reads them straight from the profile, not via /birds.
 set -euo pipefail
 
-BUCKET="${ILLUSTRATIONS_BUCKET:-yourstation-illustrations}"
+# The bucket belongs to the station (infrastructure/illustrations.tf) and the engine ships no
+# default — a wrong default would sync one station's art into another station's bucket.
+BUCKET="${ILLUSTRATIONS_BUCKET:?set ILLUSTRATIONS_BUCKET — see infrastructure/illustrations.tf}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-DIR="$ROOT/stations/yourstation/illustrations"
+# Same profile resolution as the app: STATION_PROFILE (absolute), else the example station.
+DIR="${STATION_PROFILE:-$ROOT/stations/example}/illustrations"
 
 command -v aws >/dev/null || { echo "aws CLI not found — install it and configure creds" >&2; exit 1; }
 

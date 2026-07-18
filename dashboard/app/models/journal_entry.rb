@@ -29,10 +29,19 @@ class JournalEntry < ApplicationRecord
 
     def build_and_freeze(date)
       facts = DailyFacts.for(date: date, now: date.end_of_day)
-      attrs = DayNarrator.narrate(facts).slice(:bullets, :source, :sources)
-      # enrich is the sweep's job (it runs Enrichment::Builder first); on-read we narrate from
-      # whatever bundles already exist, so a public view never blocks on live sourcing.
-      return new(date: date, **attrs) if attrs[:source] == 'template'
+      # The day's hero, frozen alongside the prose so the letter, the web coda and every later
+      # view feature the same bird — and so tomorrow's anti-repetition can read who led today.
+      hero = DayHero.pick(facts[:items], as_of: date)
+      narration = DayNarrator.narrate(facts, hero: hero).slice(:bullets, :source, :sources)
+      # Freeze the day's per-hour coverage now, while heartbeats still exist, so the Journal can
+      # draw honest mic-down gaps and tell an offline day from a quiet one on any later read.
+      attrs = narration.merge(hero_sci_name: hero&.dig(:sci_name), coverage: facts[:coverage_24h])
+      # A thin 'template' narration is left UNsaved so a later view can retry it into a real entry
+      # (enrich is the sweep's job; on-read we narrate from whatever bundles exist) — but only on a
+      # day that HAS detections, i.e. a transient model/enrichment gap. A day with NONE will never
+      # narrate to more, so we freeze it, coverage and all, to record whether the station was
+      # offline that day rather than genuinely quiet — a distinction that's lost once heartbeats prune.
+      return new(date: date, **attrs) if attrs[:source] == 'template' && facts[:detections_today].to_i.positive?
 
       create_or_find_by!(date: date) { |entry| entry.assign_attributes(attrs) }
     end

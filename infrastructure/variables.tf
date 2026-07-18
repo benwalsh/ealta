@@ -18,7 +18,7 @@ variable "domain_name" {
 }
 
 variable "github_repository" {
-  description = "owner/name of the GitHub fork allowed to deploy via OIDC (e.g. benwalsh/yourstation)."
+  description = "owner/name of the GitHub fork allowed to deploy via OIDC (e.g. you/yourstation)."
   type        = string
 }
 
@@ -56,6 +56,12 @@ variable "container_port" {
   description = "Port the Rails/Puma container listens on."
   type        = number
   default     = 3000
+}
+
+variable "admin_emails" {
+  description = "Comma-separated allowlist of signed-in emails that may reach /admin (User#admin?, fail-closed). Empty means no admins on the mirror. Set in infrastructure/terraform.tfvars (gitignored) so no address is checked into the generic engine."
+  type        = string
+  default     = ""
 }
 
 variable "google_client_id" {

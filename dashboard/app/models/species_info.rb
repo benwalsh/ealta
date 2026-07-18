@@ -14,6 +14,12 @@ require 'json'
 # the native ga article is a fallback when the model is unavailable. Fetched once per species
 # so the panel doesn't hit the network/model on every open.
 class SpeciesInfo < ApplicationRecord
+  # Commons licence codes we may reuse in the letter, matched against the machine-readable
+  # `License` field: public domain and the attribution CC licences. Deliberately an ALLOWLIST
+  # — CC BY-ND/NC variants, fair use and non-free tags all fall through to "no photo", and the
+  # letter shows the station's own illustration instead. Refusing when unsure is the only safe
+  # default: a misattributed or unlicensed photograph in a mailout is a real liability.
+  FREE_LICENCE = /\A(cc0|cc-by(-sa)?(-\d|\z)|pd|public.?domain)/
   # Distil the Wikipedia lead into a warm, readable description of the BIRD — not its
   # nomenclature. Summarise only from the supplied text; add no outside knowledge.
   SUMMARISE_DESC = <<~PROMPT.freeze
@@ -47,8 +53,14 @@ class SpeciesInfo < ApplicationRecord
       info = find_or_initialize_by(sci_name: sci)
       return info.description if info.description.present?
 
-      text = describe(sci, common)
-      info.update(description: text, fetched_at: Time.current) if text
+      text, from_model = describe(sci, common)
+      # Only keep what we meant to produce. With a model configured, a failed summary means
+      # try again on the next detection — NOT "this bird's description is the raw Wikipedia
+      # lead forever". Freezing the fallback is how a transient Bedrock blip used to leave a
+      # species permanently showing nomenclature trivia, and preparing content automatically
+      # (PrepareSpeciesContentJob) would otherwise make that far easier to hit. With no model
+      # configured at all, the lead IS the intended answer, so it caches normally.
+      info.update(description: text, fetched_at: Time.current) if text && (from_model || !Bedrock.available?)
       text
     end
 
@@ -77,19 +89,67 @@ class SpeciesInfo < ApplicationRecord
       url
     end
 
+    # The hero photograph for a species — { url:, credit: } — or nil when there is none.
+    #
+    # FOR THE NEWSLETTER ONLY. The website never shows a photograph: it is the e-ink panel's
+    # voice, and dithered illustrations on paper are the whole aesthetic. A letter arriving in
+    # a mail client is a different surface, and one real photograph of the day's bird earns
+    # its place there. Nothing in the web app calls this, and nothing should — the species
+    # card, the API and the panel all stay on the station's own art.
+    #
+    # fetched_photo_at records the attempt — including a miss — so a species is looked up once
+    # rather than on every send. nil means no usable photo, and the letter's hero_banner falls
+    # back to the illustration, which is a perfectly good outcome rather than a failure.
+    def photo_for(sci)
+      info = find_or_initialize_by(sci_name: sci)
+      return stored_photo(info) if info.fetched_photo_at.present?
+
+      photo = fetch_photo(sci)
+      info.update(photo_url: photo&.fetch(:url), photo_credit: photo&.fetch(:credit),
+                  fetched_photo_at: Time.current)
+      photo
+    end
+
+    # Is everything the species modal needs already stored, so opening it is a pure DB read?
+    # Both descriptions and the song. The song counts as ready when the curated manifest covers
+    # it, because url_for then resolves without ever touching SpeciesInfo (so fetched_song_at
+    # stays nil forever and would otherwise read as permanently cold).
+    #
+    # One definition, used by all three callers — the ingest hook deciding what to enqueue, the
+    # job re-checking before it spends on a model, and the warm rake task — so they cannot drift.
+    def content_ready?(sci, info = find_by(sci_name: sci))
+      return false if info.nil?
+
+      info.description.present? && info.fetched_ga_at.present? &&
+        (SongSample.bundled?(sci) || info.fetched_song_at.present?)
+    end
+
+    # Which of these species still need preparing. One query rather than one per species: an
+    # ingest batch can carry a good few, and this runs on the Pi's push path.
+    def missing_content(sci_names)
+      names = Array(sci_names).compact.uniq
+      return [] if names.empty?
+
+      by_name = where(sci_name: names).index_by(&:sci_name)
+      names.reject { |sci| content_ready?(sci, by_name[sci]) }
+    end
+
     private
 
     # The English description: an LLM summary of the Wikipedia lead when a model is
     # configured, else the raw lead paragraph. Both draw on Wikipedia by scientific name,
     # falling back to the common name (some articles resolve only under the vernacular).
+    # Returns [text, from_model] — the caller needs the provenance to decide whether the
+    # result is worth freezing (see english_for), since the fallback is a stand-in rather
+    # than the answer we wanted.
     def describe(sci, common)
       if Bedrock.available?
         lead = fetch_lead(sci) || (common && fetch_lead(common))
         summary = lead && summarise(lead)
-        return summary if summary.present?
+        return [summary, true] if summary.present?
       end
       # No model, or the summary failed: the plain first-paragraph extract.
-      fetch(sci, 'en') || (common && fetch(common, 'en'))
+      [fetch(sci, 'en') || (common && fetch(common, 'en')), false]
     end
 
     # Wikipedia lead → a warm 2–3 sentence description of the bird via Bedrock. Uses the
@@ -155,6 +215,76 @@ class SpeciesInfo < ApplicationRecord
           page['title'].to_s.downcase.tr(' ', '_').include?(needle)
       end
       match&.dig('imageinfo', 0, 'url')
+    end
+
+    # A stored photo as the letter's pair, or nil. A photo we cannot credit is treated as no
+    # photo: we only ever stored one whose licence and attribution we resolved, so a blank
+    # credit means something went wrong and the illustration is the safer answer.
+    def stored_photo(info)
+      return nil if info.photo_url.blank? || info.photo_credit.blank?
+
+      { url: info.photo_url, credit: info.photo_credit }
+    end
+
+    # The species' LEAD image from its Wikipedia article — curated onto that exact article, so
+    # it is the bird rather than whatever a bare image search dredges up (the same reasoning
+    # as article_song). Returns { url:, credit: } only when the licence permits reuse AND the
+    # credit can be built; otherwise nil.
+    def fetch_photo(sci)
+      title = get_json('https://en.wikipedia.org/w/api.php?action=query&format=json&redirects=1' \
+                       '&prop=pageimages&piprop=name&titles=' \
+                       "#{ERB::Util.url_encode(sci.tr(' ', '_'))}")&.
+              dig('query', 'pages')&.values&.first&.dig('pageimage')
+      return nil if title.blank?
+
+      photo_from_commons("File:#{title}")
+    rescue StandardError
+      nil
+    end
+
+    # A Commons File: title → { url:, credit: }, gated on its licence metadata.
+    def photo_from_commons(title)
+      meta = get_json('https://commons.wikimedia.org/w/api.php?action=query&format=json' \
+                      '&prop=imageinfo&iiprop=url%7Cextmetadata&titles=' \
+                      "#{ERB::Util.url_encode(title)}")&.
+             dig('query', 'pages')&.values&.first&.dig('imageinfo', 0)
+      return nil if meta.blank?
+
+      extra = meta['extmetadata'] || {}
+      licence = licence_label(extra)
+      url = meta['url']
+      return nil if url.blank? || licence.blank?
+
+      credit = [attribution(extra), licence].compact_blank.join(' · ')
+      credit.present? ? { url: url, credit: credit } : nil
+    end
+
+    # The licence, but ONLY when it is one that permits reuse. Commons' machine-readable
+    # `License` code is the thing to test — the human LicenseShortName is free text. Anything
+    # unrecognised (fair use, non-free promotional, a bare "used with permission") returns nil
+    # and the photo is dropped: showing an image we cannot license is a legal fault, not a
+    # cosmetic one, so the rule is allowlist and refuse when unsure. Restrictions (trademark,
+    # personality rights) also disqualify — those need a judgement no automated send can make.
+    def licence_label(extra)
+      code = extra.dig('License', 'value').to_s.downcase
+      return nil unless code.match?(FREE_LICENCE)
+      return nil if extra.dig('Restrictions', 'value').to_s.strip.present?
+
+      strip_markup(extra.dig('LicenseShortName', 'value')).presence || code.upcase
+    end
+
+    # The photographer. Commons returns this as an HTML fragment (usually a link to a user
+    # page), so it is stripped to text. Blank for public-domain works, which is legitimate —
+    # PD/CC0 carry no attribution requirement, so the licence alone is a complete credit.
+    def attribution(extra)
+      strip_markup(extra.dig('Artist', 'value')).presence ||
+        strip_markup(extra.dig('Credit', 'value')).presence
+    end
+
+    def strip_markup(html)
+      return nil if html.blank?
+
+      ActionView::Base.full_sanitizer.sanitize(html.to_s).to_s.squish
     end
 
     # A File: page title → its playable media URL.

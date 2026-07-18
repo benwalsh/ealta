@@ -14,6 +14,12 @@ resource "random_id" "ingest_token" {
   byte_length = 24
 }
 
+# Authenticates the SES→SNS delivery-event callback (the secret rides in the webhook
+# path; the app also verifies the SNS signature). Cloud-only, like the ingest token.
+resource "random_id" "ses_webhook_token" {
+  byte_length = 24
+}
+
 locals {
   ssm_prefix = "/${var.station_name}"
 }
@@ -34,6 +40,12 @@ resource "aws_ssm_parameter" "ingest_token" {
   name  = "${local.ssm_prefix}/CLOUD_INGEST_TOKEN"
   type  = "SecureString"
   value = random_id.ingest_token.hex
+}
+
+resource "aws_ssm_parameter" "ses_webhook_token" {
+  name  = "${local.ssm_prefix}/SES_WEBHOOK_TOKEN"
+  type  = "SecureString"
+  value = random_id.ses_webhook_token.hex
 }
 
 # Google OAuth — supplied by you (terraform.tfvars / TF_VAR_*), not generated.

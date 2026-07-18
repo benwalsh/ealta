@@ -4,6 +4,7 @@ import { useLang } from '../lang'
 import { useFollow } from '../favourites'
 import { FollowButton } from './FollowButton'
 import { AudioBar } from './AudioBar'
+import { LoreCredit } from './LoreCredit'
 import { ago, stamp } from '../time'
 import type { Enrichment, EnrichmentBlock } from '../types'
 
@@ -46,9 +47,7 @@ function Lore({
       {block.sources.length > 0 && (
         <span className="modal-lore-src">
           {block.sources.map((s, i) => (
-            <a key={i} href={s.url} target="_blank" rel="noopener noreferrer">
-              {s.host ?? 'source'}
-            </a>
+            <LoreCredit key={i} source={s} />
           ))}
         </span>
       )}
@@ -105,7 +104,12 @@ export function SpeciesModal({ sci, onClose }: { sci: string; onClose: () => voi
   const subtitle = data ? (lang === 'ga' ? data.en : data.ga) : null
   const desc = data ? (lang === 'ga' ? data.description_ga || data.description : data.description) : null
   const cons = data?.conservation
+  // Folklore only. The bundle also carries `fact` / `regional_note` blocks, but those are raw
+  // material for the narrated day — the Journal and the letter turn them into prose — not
+  // something to list at the reader as cited bullets. Here the description above already says
+  // what the bird is; what earns its place after it is the folklore.
   const enr = data?.enrichment ?? looked
+  const folk = enr?.blocks.filter((b) => b.type === 'folklore') ?? []
 
   return (
     <div id="detail-modal" className="is-open">
@@ -168,16 +172,10 @@ export function SpeciesModal({ sci, onClose }: { sci: string; onClose: () => voi
                   </div>
                 </div>
                 {desc && <p className="desc">{desc}</p>}
-                {enr && enr.blocks.length > 0 ? (
+                {folk.length > 0 ? (
                   <div className="modal-lore">
-                    {enr.blocks.map((b, i) => (
-                      <Lore
-                        key={i}
-                        kind={loreLabel(b.type, t)}
-                        block={b}
-                        tone={b.type === 'folklore' ? 'is-folk' : 'is-fact'}
-                        ga={lang === 'ga'}
-                      />
+                    {folk.map((b, i) => (
+                      <Lore key={i} kind={loreLabel(b.type, t)} block={b} tone="is-folk" ga={lang === 'ga'} />
                     ))}
                   </div>
                 ) : signedIn ? (
@@ -187,7 +185,7 @@ export function SpeciesModal({ sci, onClose }: { sci: string; onClose: () => voi
                       ? t('Looking…', 'Ag cuardach…')
                       : lookFailed
                         ? t('Nothing found — try again', 'Faic fós — féach arís')
-                        : t('Look up facts & folklore', 'Cuardaigh fíricí is béaloideas')}
+                        : t('Look up folklore', 'Cuardaigh béaloideas')}
                   </button>
                 ) : null}
                 {data.song && (

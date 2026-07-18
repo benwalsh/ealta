@@ -1,11 +1,14 @@
-# Narrates a single day into 2–4 warm, factual bullets that read like a naturalist's diary
-# entry, not a stats readout. Given a DailyFacts hash for ANY day (today, or a completed past
-# day for the Journal), it returns bilingual bullets + their source + the citations behind the
-# facts & folklore. Ruby has already done the reasoning (DailyFacts for the day's shape;
-# EnrichmentBundle for each prominent bird's already-sourced facts & folklore); this layer only
-# asks the model to STITCH that material, and falls back to a rich no-model version when the
-# model is unavailable. It is date-agnostic and stateless: TodaySummary wraps it with the
-# today cache, JournalEntry wraps it with a frozen per-day store.
+# Narrates a single day into warm, factual bullets that read like a naturalist's diary entry,
+# not a stats readout — the LENGTH scaling with how much actually happened (a quiet sparrows-and-
+# gulls day stays brief; a day of arrivals and rarities runs fuller and features each notable
+# bird). Given a DailyFacts hash for ANY day (today, or a completed past day for the Journal), it
+# returns bilingual bullets + their source + the citations behind the facts & folklore, opening on
+# the day's HERO (DayHero — importance with anti-repetition), so the prose leads with the same bird
+# the letter pictures and the coda quotes. Ruby has already done the reasoning (DailyFacts for the
+# day's shape; EnrichmentBundle for each prominent bird's already-sourced facts & folklore); this
+# layer only asks the model to STITCH that material, and falls back to a rich no-model version when
+# the model is unavailable. Date-agnostic and stateless: TodaySummary wraps it with the today
+# cache, JournalEntry wraps it with a frozen per-day store.
 class DayNarrator
   # The daily-note system prompt is the station's own (Prompts -> day_note.system.md); the
   # location is filled per request (%<where>s). Ruby still owns every fact it narrates.
@@ -13,6 +16,16 @@ class DayNarrator
   # How many items to hand the model — ordered importance-first, so the tail of
   # routine tallies is bounded without hiding anything that matters.
   MAX_ITEMS = 10
+  # The ceiling on bullets — a full day of rarities earns the longer end; the target for any given
+  # day is set by DailyFacts' notable count (see target_bullets), and the model is told the range.
+  MAX_BULLETS = 5
+  # The day's hero, phrased from its flag, for the LEAD line (mirrors DailyFacts' rarity_context).
+  HERO_CONTEXT = {
+    'all_time_first'       => 'a first for the station',
+    'all_time_first_young' => 'a first for the station',
+    'year_first'           => 'the first this year',
+    'rare_local'           => 'a locally rare visitor'
+  }.freeze
   # How many of the day's most prominent species to pull stored facts & folklore for.
   LORE_SPECIES = 5
   # How many un-enriched NOTABLE birds a single pass will source on the spot.
@@ -27,6 +40,18 @@ class DayNarrator
   ARRIVAL_FLAGS = %w[all_time_first all_time_first_young year_first].freeze
   # Words that assert novelty — legitimate only when the facts actually flag an arrival.
   NOVELTY = /\b(first|arriv\w+|debut|maiden|newly)\b/i
+
+  # A count is how many TIMES a bird was heard, not how many birds — the station records
+  # sounds and cannot count individuals, so one bird calling all morning is many detections.
+  # "two birds logged" is therefore false, and it is the easiest falsehood for a narrator to
+  # reach for. The prompt says so; this refuses the bullet if it does it anyway, because a
+  # confidently wrong bird fact is the failure that matters. Matches a number (in digits or
+  # words) attached to "bird(s)": "two birds", "137 birds", "a dozen birds".
+  COUNTED_BIRDS = /
+    \b(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|
+       dozen|several|a\s+few|many|numerous)\s+
+    (?:\w+\s+){0,2}?birds?\b
+  /xi
   # …but a NEGATED mention ("no new arrivals or firsts today") is not a claim.
   NEGATION = /\b(no|not|n't|without|never|nothing|none|nor)\b/i
 
@@ -59,13 +84,20 @@ class DayNarrator
     #   model:  false → skip the model entirely, return the rich fallback (the never-block path)
     #   enrich: true  → source the day's un-enriched notable birds first (slow; the build path)
     # 'llm' means the model wrote it; 'facts'/'template' mean it fell back (model off/failed).
-    def narrate(facts, model: true, enrich: false)
+    def narrate(facts, model: true, enrich: false, hero: nil)
       ensure_notable_enriched(facts) if enrich && model
+      # The day's hero leads the prose. The caller (JournalEntry) passes the pick it froze so the
+      # note, the picture and the coda agree; other callers let us resolve it here.
+      hero ||= DayHero.pick(facts[:items], as_of: narration_date(facts))
       lore = enrichment_for(facts)
       sources = sources_from(lore)
       # available? (not just !disabled?): a station with no LLM configured skips the model
       # attempt entirely and takes the rich facts fallback — no doomed Bedrock call to rescue.
-      if model && Bedrock.available? && (bullets = generate(facts, lore))
+      # narratable? guards the model too: a day with zero detections has nothing to narrate, and
+      # since the data can't tell a genuinely quiet day from a mic that was down, any prose would
+      # assert a silence we can't vouch for. Fall to the bare template so the Journal and letter
+      # speak from frozen coverage instead ("offline this day" vs "a quiet day").
+      if narratable?(facts) && model && Bedrock.available? && (bullets = generate(facts, lore, hero))
         return { bullets: bullets, source: 'llm', sources: sources }
       end
 
@@ -76,28 +108,38 @@ class DayNarrator
     # Serialise the facts object + stored bird-lore into the user message. Public so a
     # spec (or a human) can eyeball exactly what the model is asked. `lore` is the shape
     # returned by enrichment_for: an array of { common_name:, irish_name:, blocks: }.
-    def user_message(facts, lore = [])
+    def user_message(facts, lore = [], hero = nil)
       lines = ["Date: #{facts[:date]}. #{facts[:species_today]} species, " \
                "#{facts[:detections_today]} detections today."]
+      lines << length_directive(facts)
       if (loudest = facts[:items].max_by { |i| i[:call_count] })
         lines << "Most detected today by count: #{loudest[:common_name]} (#{loudest[:call_count]})."
       end
       lines << 'Items (name, Irish, count, importance, flags) — IMPORTANCE order, not count order:'
       facts[:items].first(MAX_ITEMS).each { |item| lines << item_line(item) }
       lines << "Activity: #{activity_phrase(facts[:activity_note])}." if facts[:activity_note]
-      lines << spotlight_line(facts[:spotlight]) if facts[:spotlight]
+      lines << listening_line(facts[:listening])
+      lead = lead_line(hero, facts)
+      lines << lead if lead
       lines.concat(lore_lines(lore))
-      lines.join("\n")
+      lines.compact.join("\n")
     end
 
     private
+
+    # A day is narratable only if something was actually detected. With zero detections there is
+    # nothing to say AND no way to know whether the station was quiet or offline, so we never let
+    # the model (or the facts fallback) speak — the template + frozen coverage carry the honest line.
+    def narratable?(facts)
+      facts[:detections_today].to_i.positive?
+    end
 
     # Bilingual bullets { en:, ga: } or nil. English is generated from the facts + the stored
     # bird-lore; the second language (ga) is a translation of that English — but only when the
     # station offers a second language. A single-language station never translates and just
     # mirrors English into the ga slot, so no consumer has to special-case it.
-    def generate(facts, lore = [])
-      message = user_message(facts, lore)
+    def generate(facts, lore = [], hero = nil)
+      message = user_message(facts, lore, hero)
       message = "#{message}\n\n#{COMPLETED_DAY_NOTE}" if completed_day?(facts)
       en = attempt(format(Prompts.get('day_note.system'), where: station_context), message)
       return nil unless en && supported?(en, facts)
@@ -166,13 +208,58 @@ class DayNarrator
     # / activity lines are left OUT. Shown as 'facts'; falls to the bare 'template' (hidden)
     # only when there is genuinely nothing to say.
     def fallback(facts, lore)
+      cap = target_bullets(facts).max
       news = news_bullets(facts)
-      character = character_bullets(lore)
-      en = (news[:en] + character[:en]).first(4)
-      ga = (news[:ga] + character[:ga]).first(4)
+      character = character_bullets(lore, cap)
+      en = (news[:en] + character[:en]).first(cap)
+      ga = (news[:ga] + character[:ga]).first(cap)
       return [{ en: en, ga: ga }, 'facts'] if en.any?
 
       [DailyFacts.template_bullets(facts), 'template']
+    end
+
+    # How many bullets today earns — brief when nothing is notable, fuller as the notable birds
+    # (DailyFacts' importance ≥ NOTABLE_IMPORTANCE) stack up, so the entry breathes with the day.
+    def target_bullets(facts)
+      case Array(facts[:notable_today]).size
+      when 0 then 1..2
+      when 1 then 2..3
+      when 2 then 3..4
+      else 4..MAX_BULLETS
+      end
+    end
+
+    # The instruction the model reads for length + shape — scaled to the day's notable count.
+    def length_directive(facts)
+      range = target_bullets(facts)
+      notable = Array(facts[:notable_today]).size
+      shape = if notable >= 2
+                "A full day — #{notable} notable birds. Give the LEAD bird its own bullet, then a " \
+                  'striking, sourced detail on each other notable bird; routine birds are light texture.'
+              elsif notable == 1
+                'One notable bird — feature it; the routine birds are light texture around it.'
+              else
+                'A quiet day — keep it brief; a bullet or two on the most characterful bird is enough.'
+              end
+      "LENGTH: write #{range.min} to #{range.max} bullets. #{shape}"
+    end
+
+    # The LEAD line: open the entry with the day's hero, phrased from its flag. Falls back to the
+    # DailyFacts spotlight when no hero is supplied (a direct user_message call), so specs and any
+    # legacy caller keep the old advisory line.
+    def lead_line(hero, facts)
+      return facts[:spotlight] && spotlight_line(facts[:spotlight]) if hero.nil?
+
+      irish = hero[:irish_name].present? ? " (#{hero[:irish_name]})" : ''
+      context = HERO_CONTEXT.find { |flag, _| Array(hero[:flags]).include?(flag) }&.last
+      tail = context ? " — #{context}" : ''
+      "LEAD (open the entry with this bird): #{hero[:common_name]}#{irish}#{tail}."
+    end
+
+    def narration_date(facts)
+      Date.parse(facts[:date].to_s)
+    rescue ArgumentError, TypeError
+      Date.current
     end
 
     # Today's genuine news as bilingual bullets — an all-time or year first, named.
@@ -189,8 +276,8 @@ class DayNarrator
 
     # A genuinely interesting thing about the day's birds — a behaviour/habit fact or a piece
     # of folklore — scanning ALL the prominent enriched birds and taking the best three.
-    def character_bullets(lore)
-      picked = Array(lore).filter_map { |bird| interesting_block(bird[:blocks]) }.first(3)
+    def character_bullets(lore, limit = 3)
+      picked = Array(lore).filter_map { |bird| interesting_block(bird[:blocks]) }.first(limit)
       { en: picked.pluck(:text), ga: picked.map { |b| b[:text_ga].presence || b[:text] } }
     end
 
@@ -223,9 +310,24 @@ class DayNarrator
     # A last-ditch factuality gate: if nothing today is a first, a summary that still calls
     # something a first is wrong — reject it, take the fallback.
     def supported?(bullets, facts)
+      return false if counted_individuals?(bullets, facts)
       return true if facts[:items].any? { |i| Array(i[:flags]).intersect?(ARRIVAL_FLAGS) }
 
       bullets.none? { |b| b.match?(NOVELTY) && !b.match?(NEGATION) }
+    end
+
+    # The other half of "a count is detections, not birds": "137 house sparrows" claims 137
+    # creatures as surely as "137 birds" does, and only the day's own species names can catch
+    # it. Number FIRST, name second — "the herring gull led the day at 203" is the correct
+    # shape and is left alone.
+    def counted_individuals?(bullets, facts)
+      names = Array(facts[:items]).filter_map { |i| i[:common_name].presence }.uniq
+      return false if names.empty?
+
+      plural = /\b\d+\s+(?:#{names.map { |n| Regexp.escape(n) }.join('|')})s\b/i
+      offender = bullets.find { |b| b.match?(plural) }
+      Rails.logger.warn("DayNarrator: rejected — counted individuals, not detections: #{offender}") if offender
+      offender.present?
     end
 
     # One model round-trip → validated bullets, or nil (unreachable model, or output that
@@ -249,9 +351,18 @@ class DayNarrator
       end
     end
 
-    # 1–4 non-empty bullets, none shouting (an exclamation mark is a house-rule violation).
+    # 1–MAX_BULLETS non-empty bullets, none shouting (an exclamation mark is a house-rule
+    # violation), and none counting BIRDS where the facts only ever counted detections. The
+    # prompt's LENGTH line sets the target within this; validation just guards the ceiling and
+    # the house rules. A rejected attempt falls back to the deterministic template, which
+    # states the counts correctly — a plain true line beats a warm false one.
     def valid?(bullets)
-      bullets.size.between?(1, 4) && bullets.all?(&:present?) && bullets.none? { |b| b.include?('!') }
+      return false unless bullets.size.between?(1, MAX_BULLETS) && bullets.all?(&:present?)
+      return false if bullets.any? { |b| b.include?('!') }
+
+      offender = bullets.find { |b| b.match?(COUNTED_BIRDS) }
+      Rails.logger.warn("DayNarrator: rejected — counted birds, not detections: #{offender}") if offender
+      offender.nil?
     end
 
     def item_line(item)
@@ -266,6 +377,24 @@ class DayNarrator
       line = "Spotlight: #{spotlight[:common_name]} — #{spotlight[:rarity_context]}."
       line += " Background: #{spotlight[:blurb]}" if spotlight[:blurb].present?
       line
+    end
+
+    # The coverage stat, stated whenever the recorder missed part of the day — every count in
+    # this prompt has to be read against it. Without it the model sees a short count and calls
+    # the day quiet, which is the one thing it must not do: the birds were not quieter, the
+    # station was not listening. DailyFacts already withholds the pace verdict when coverage is
+    # poor; this tells the narration what to say in its place, so a gap reads as a gap.
+    def listening_line(cover)
+      return nil unless cover
+
+      live = cover[:hours_live].to_i
+      elapsed = cover[:hours_elapsed].to_i
+      return nil if elapsed.zero? || live >= elapsed
+
+      "Recorder coverage: listening for #{live} of #{elapsed} hours - the mic was DOWN for " \
+        "#{elapsed - live}. Every count here covers only the listening time. Do NOT call the day " \
+        'quiet, slow, sparse or below average: that is missing coverage, not bird behaviour. ' \
+        'If you mention volume at all, say the station was offline for part of the day.'
     end
 
     def activity_phrase(note)

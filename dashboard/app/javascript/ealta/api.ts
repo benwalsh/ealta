@@ -60,10 +60,17 @@ export const useAccount = (enabled: boolean) =>
 
 // The admin health snapshot — session + admin-gated (403 off it). Polls while open so the
 // listening dot and figures stay live; admin mutations invalidate ['health'] to refresh.
+//
+// networkMode 'always': by default react-query PAUSES a failed fetch when it believes the
+// browser is offline, leaving the query pending-but-not-fetching with no error — the console
+// then wedges (blank, and `refetch` won't fire) until a full reload. The station is often a
+// box on the local network, where those online heuristics are unreliable, so always attempt
+// the request and let a real failure surface as a real error.
 export const useHealth = (enabled: boolean) =>
   useQuery<AdminHealth>({
     queryKey: ['health'],
     queryFn: () => fetchJson('/admin'),
     enabled,
     refetchInterval: 60_000,
+    networkMode: 'always',
   })

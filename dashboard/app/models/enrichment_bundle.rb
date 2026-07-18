@@ -27,6 +27,16 @@ class EnrichmentBundle < ApplicationRecord
     def current_for(sci_names)
       where(sci_name: sci_names).order(date: :desc).uniq(&:sci_name)
     end
+
+    # A species' folklore, from BOTH sources treated identically: the station's own curated lore
+    # (Enrichment::SeedLore ← bird_lore.yml) and the web-sourced folklore in the current bundle
+    # (dúchas and friends). One uniform list of folklore Blocks, so a consumer never needs to know
+    # which spring an entry came from. Seed lore is always present (no bundle required); Wikipedia
+    # prose stays a `fact`, so it never appears here.
+    def folklore_for(sci_name)
+      Enrichment::SeedLore.blocks_for(sci_name) +
+        Array(current(sci_name)&.block_objects).select { |b| b.type == 'folklore' }
+    end
   end
 
   # The stored blocks as validated value objects. Invalid blocks are dropped — a
@@ -40,18 +50,50 @@ class EnrichmentBundle < ApplicationRecord
   # found, not just one line. Nil when there's nothing usable. Shared by the species API
   # and the on-demand look-up so the card renders one consistent object.
   def to_display
-    items = block_objects.filter_map { |b| display_block(b) }
-    return nil if items.empty?
-
-    { date: date.iso8601, blocks: items }
+    self.class.display(block_objects, date: date)
   end
 
-  private
+  class << self
+    # The card shape for a species, merging BOTH folklore springs into the same list the modal
+    # already renders: the current bundle's sourced blocks (fact, regional note, web folklore) and
+    # the station's own seed folklore (Enrichment::SeedLore ← bird_lore.yml), which needs no
+    # bundle. Folklore is folklore here — a seed poem sits among the sourced blocks, credited the
+    # same way. Nil when there's nothing to show.
+    def display_for(sci_name)
+      bundle = current(sci_name)
+      display(Array(bundle&.block_objects) + Enrichment::SeedLore.blocks_for(sci_name),
+              date: bundle&.date)
+    end
 
-  def display_block(block)
-    return nil if block.text.blank?
+    # Blocks → the card shape, or nil when none render.
+    def display(blocks, date: nil)
+      items = blocks.filter_map { |b| display_block(b) }
+      return nil if items.empty?
 
-    { type: block.type, text: block.text, text_ga: block.text_ga.presence,
-      sources: block.sources.filter_map { |s| s[:url].presence && { host: s[:host], url: s[:url] } } }
+      { date: (date || Date.current).iso8601, blocks: items }
+    end
+
+    private
+
+    def display_block(block)
+      return nil if block.text.blank?
+
+      { type: block.type, text: block.text, text_ga: block.text_ga.presence,
+        # Keep a credit even when it has no URL — the station's seed lore cites an attribution
+        # (e.g. "Ninth-century Irish poem"), not a link, and quoted material always says whence.
+        # A dúchas source also carries its rights-holder, licence (+ deed link) and collector, so
+        # the card can render the exact attribution the Schools' Collection asks for.
+        sources: block.sources.filter_map { |source| display_source(source) } }
+    end
+
+    # A source is renderable once it can be pointed at — a link, or a bare attribution
+    # (the seed lore's "Ninth-century Irish poem" has no URL). Fields come from the block
+    # contract rather than being re-listed here, so a new citation field reaches the card
+    # without a second edit in this file.
+    def display_source(source)
+      return nil unless source[:url].presence || source[:host].presence
+
+      source.slice(*Enrichment::Block::SOURCE_FIELDS).compact
+    end
   end
 end

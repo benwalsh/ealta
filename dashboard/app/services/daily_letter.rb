@@ -14,19 +14,19 @@ class DailyLetter
       sent
     end
 
-    # The day's most notable bird — the letter's picture. Importance-first (an arrival or
-    # rarity beats the loudest sparrow), and only a bird the station has art for (the
-    # masks table is the truth of that); nil when the day offers neither.
+    # The day's hero — the letter's featured bird — read from the frozen JournalEntry, so the
+    # letter, the web coda and the deep dive all name the SAME bird (DayHero's importance +
+    # anti-repetition pick, not a fresh recompute). `slug` carries the illustration only when the
+    # station has art for that bird (the masks table is the truth of that); when it doesn't, the
+    # letter runs without a picture until a sourced photo fills it. nil on a birdless day.
     def hero_bird(date)
-      items = Array(DailyFacts.for(date: date, now: date.end_of_day)[:items])
-      items.sort_by { |i| -i[:importance].to_i }.each do |item|
-        slug = item[:sci_name].downcase.tr(' ', '-')
-        next unless BirdMask.for(slug)
+      sci = JournalEntry.for(date)&.hero_sci_name
+      return nil if sci.blank?
 
-        return { sci: item[:sci_name], slug: slug,
-                 en: item[:common_name], ga: item[:irish_name].presence }
-      end
-      nil
+      name = BirdName.lookup(sci)
+      slug = sci.downcase.tr(' ', '-')
+      { sci: sci, slug: (slug if BirdMask.for(slug)),
+        en: name.en, ga: name.ga.presence }
     end
 
     private
@@ -48,13 +48,19 @@ class DailyLetter
     return false if @user.last_digest_on == @date
 
     entry = JournalEntry.for(@date)
-    # Mark the day done even when there's nothing to say — it's a complete past day,
-    # nothing more will land, so there's no reason to rescan it.
-    @user.update!(last_digest_on: @date)
-    # An unsaved entry is the thin 'template' narration (nothing to say, or a model
-    # outage left for a later view to retry) — not worth a letter.
-    return false unless entry&.persisted?
+    # An UNSAVED entry is an outage/thin 'template' left for a later view to retry — nothing to send
+    # yet, so mark done (a complete past day won't be rescanned). A PERSISTED entry is worth a
+    # letter, even a frozen empty day: the reader still hears from the station, and the Notifier
+    # gives that day a coverage-aware line (a quiet day, or the station was offline).
+    unless entry&.persisted?
+      @user.update!(last_digest_on: @date)
+      return false
+    end
 
-    Notifier.deliver_letter(user: @user, date: @date, entry: entry, hero: @hero)
+    sent = Notifier.deliver_letter(user: @user, date: @date, entry: entry, hero: @hero)
+    # Mark done ONLY on a confirmed send. A transient SES failure (deliver_letter → false) leaves
+    # last_digest_on unset so the next sweep retries, rather than silently skipping this reader.
+    @user.update!(last_digest_on: @date) if sent
+    sent
   end
 end

@@ -24,7 +24,15 @@ Rails.application.routes.draw do
   post   'subscriptions' => 'subscriptions#create'
   post   'subscriptions/cadence' => 'subscriptions#cadence', as: :subscription_cadence
   delete 'subscriptions/:id' => 'subscriptions#destroy', as: :subscription
-  get    'subscriptions/:token/unsubscribe' => 'subscriptions#unsubscribe', as: :unsubscribe
+  # Both unsubscribe links accept GET (the in-body link) and POST (a mailbox provider's
+  # RFC 8058 one-click). The per-subscription token drops one alert; the per-user letter
+  # token drops the whole daily letter.
+  match  'subscriptions/:token/unsubscribe' => 'subscriptions#unsubscribe', via: %i[get post], as: :unsubscribe
+  match  'letter/:token/unsubscribe' => 'subscriptions#unsubscribe_letter', via: %i[get post], as: :letter_unsubscribe
+
+  # SES delivery events (bounce/complaint/delivery) arrive here via SNS, keeping the
+  # suppression list current. Token in the path + SNS signature; 404 on the Pi (token unset).
+  post   'webhooks/ses/:token' => 'ses_notifications#create', as: :ses_notifications
 
   # Follow / unfollow a species from the SPA (authenticated JSON; sci_name in the
   # body so binomials needn't be URL-encoded). Backed by the same Subscription rows
@@ -42,8 +50,24 @@ Rails.application.routes.draw do
   patch 'admin/station' => 'admin#update_station', as: :admin_station
   # Mutating maintenance actions (each admin-gated) — the ones that used to be shell/PHP.
   post 'admin/birdnet/restart' => 'admin#restart_listener', as: :admin_restart_listener
-  patch 'admin/detection' => 'admin#correct_detection', as: :admin_correct_detection
   delete 'admin/data' => 'admin#clear_data', as: :admin_clear_data
+  # Rebuild a day's frozen journal (the letter is the same words).
+  post 'admin/journal/regenerate' => 'admin#regenerate_journal', as: :admin_regenerate_journal
+  # The keeper's note for a day — read it back, or write/clear it. Carried by both that day's
+  # letter and its journal entry.
+  match 'admin/note' => 'admin#day_note', via: %i[get put], as: :admin_day_note
+  # Rebuild the species descriptions (queued). The console's stand-in for a shell: ECS
+  # Express Mode has no ECS Exec, so the rake equivalent can only ever run locally.
+  post 'admin/species/refresh' => 'admin#refresh_species_content', as: :admin_refresh_species_content
+  # The letter is only ever previewed, or sent to the admin alone — mailing every subscriber
+  # is the scheduler's job (DailyEmailSweep), never a request.
+  get  'admin/letter/preview' => 'admin#preview_letter', as: :admin_preview_letter
+  post 'admin/letter/test' => 'admin#send_test_letter', as: :admin_send_test_letter
+  # A one-off note to the letter's readers. Three steps on purpose — read it, send it to
+  # yourself, then confirm by typing how many people it goes to.
+  post 'admin/blast/preview' => 'admin#preview_blast', as: :admin_preview_blast
+  post 'admin/blast/test' => 'admin#test_blast', as: :admin_test_blast
+  post 'admin/blast' => 'admin#send_blast', as: :admin_send_blast
 
   # The background-jobs dashboard (Solid Queue via Mission Control). Admin-gated by
   # JobsBaseController; cloud-only, so guarded — the gem isn't installed on the Pi.

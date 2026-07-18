@@ -36,6 +36,52 @@ RSpec.describe DayNarrator do
       expect(msg).to include('House Sparrow (Gealbhan binne):')
       expect(msg).to include('[fact] Nests under the eaves of houses.')
     end
+
+    it 'scales the length directive with the day\'s notable count' do
+      quiet = facts.merge(notable_today: [])
+      full  = facts.merge(notable_today: [{ sci_name: 'a' }, { sci_name: 'b' }, { sci_name: 'c' }])
+      expect(described_class.user_message(quiet)).to include('LENGTH: write 1 to 2 bullets')
+      expect(described_class.user_message(full)).to include('LENGTH: write 4 to 5 bullets').
+        and include('3 notable birds')
+    end
+
+    it 'opens on the supplied day hero as the LEAD, phrased from its flag' do
+      hero = facts[:items].first # the greenshank, an all-time first
+      msg = described_class.user_message(facts, [], hero)
+      expect(msg).to include(
+        'LEAD (open the entry with this bird): Common Greenshank (Laidhrín glas) — a first for the station.'
+      )
+    end
+  end
+
+  # The station records SOUNDS. It cannot count individuals — one bird calling all morning is
+  # many detections — so "two birds logged" is false, and it is the easiest falsehood for a
+  # narrator to reach for. The prompt forbids it; these are the guards that don't rely on the
+  # model obeying prose. A rejected attempt falls back to the deterministic template, which
+  # states the counts correctly.
+  describe 'refusing to count birds instead of detections' do
+    it 'rejects a bullet that turns detections into a number of birds' do
+      ['two birds logged', 'a dozen birds about the feeders', 'three garden birds were heard'].each do |bullet|
+        expect(described_class.send(:valid?, [bullet])).to be(false), "expected #{bullet.inspect} rejected"
+      end
+    end
+
+    it 'rejects a bullet that counts individuals of a named species' do
+      expect(described_class.send(:counted_individuals?, ['30 house sparrows about the hedge'], facts)).to be(true)
+    end
+
+    it 'leaves the correct shapes alone — a count of times, not of creatures' do
+      ['the house sparrow was heard 30 times', 'the greenshank led the day at 42 detections',
+       'heard twice, both before dawn', 'the birds were quiet all afternoon'].each do |bullet|
+        expect(described_class.send(:valid?, [bullet])).to be(true), "expected #{bullet.inspect} allowed"
+        expect(described_class.send(:counted_individuals?, [bullet], facts)).to be(false)
+      end
+    end
+
+    # The rule has to be in the prompt too — the guards are a backstop, not the teaching.
+    it 'tells the narrator the rule in the prompt itself' do
+      expect(Prompts.get('day_note.system')).to include('NOT HOW MANY BIRDS')
+    end
   end
 
   describe '.enrichment_for' do
@@ -88,6 +134,24 @@ RSpec.describe DayNarrator do
       expect(result[:bullets][:en].size).to eq(2)
       expect(result[:bullets][:ga].size).to eq(2) # the Irish translation pass
     end
+
+    it 'never narrates a zero-detection day — the model is not asked to describe silence' do
+      # We can't tell a genuinely quiet day from a mic that was down, so an empty day must fall to
+      # the bare template (the Journal/letter speak from coverage), never to invented prose.
+      empty = facts.merge(species_today: 0, detections_today: 0, items: [], notable_today: [])
+      allow(Bedrock).to receive_messages(disabled?: false, available?: true)
+      expect(Bedrock).not_to receive(:converse)
+      result = described_class.narrate(empty)
+      expect(result[:source]).to eq('template')
+    end
+
+    it 'accepts a fuller entry (up to five bullets) on a busy day' do
+      five = (1..5).map { |i| "- A notable bird, number #{i}." }.join("\n")
+      allow(Bedrock).to receive_messages(disabled?: false, available?: true, converse: five)
+      result = described_class.narrate(facts.merge(notable_today: facts[:items]))
+      expect(result[:source]).to eq('llm')
+      expect(result[:bullets][:en].size).to eq(5)
+    end
   end
 
   # A completed (past) day is the Journal's — it must read in retrospect; only the front page's
@@ -109,6 +173,19 @@ RSpec.describe DayNarrator do
     it 'keeps the "today" framing for the current day' do
       expect(Bedrock).not_to receive(:converse).with(hash_including(user: a_string_including('PAST TENSE')))
       travel_to(Time.zone.local(2026, 7, 3, 15)) { described_class.narrate(facts) }
+    end
+  end
+
+  describe '.listening_line' do
+    it 'tells the model the mic was down, and forbids calling the day quiet' do
+      line = described_class.send(:listening_line, { hours_live: 7, hours_elapsed: 18 })
+      expect(line).to include('7 of 18 hours')
+      expect(line).to match(/do NOT call the day/i)
+    end
+
+    it 'says nothing when the recorder was up the whole time' do
+      expect(described_class.send(:listening_line, { hours_live: 18, hours_elapsed: 18 })).to be_nil
+      expect(described_class.send(:listening_line, nil)).to be_nil
     end
   end
 end

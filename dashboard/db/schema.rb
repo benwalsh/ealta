@@ -10,7 +10,15 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_08_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_19_120000) do
+  create_table "day_notes", force: :cascade do |t|
+    t.text "body"
+    t.datetime "created_at", null: false
+    t.date "date", null: false
+    t.datetime "updated_at", null: false
+    t.index ["date"], name: "index_day_notes_on_date", unique: true
+  end
+
   create_table "detections", force: :cascade do |t|
     t.string "Com_Name", null: false
     t.float "Confidence"
@@ -28,6 +36,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_08_120000) do
     t.index ["Date", "Time"], name: "index_detections_on_Date_and_Time"
     t.index ["Sci_Name"], name: "index_detections_on_Sci_Name"
     t.index ["dedupe_key"], name: "index_detections_on_dedupe_key", unique: true
+  end
+
+  create_table "email_suppressions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "email", null: false
+    t.string "reason"
+    t.integer "soft_bounces", default: 0, null: false
+    t.datetime "suppressed_at"
+    t.datetime "updated_at", null: false
+    t.index ["email"], name: "index_email_suppressions_on_email", unique: true
   end
 
   create_table "enrichment_bundles", force: :cascade do |t|
@@ -62,8 +80,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_08_120000) do
 
   create_table "journal_entries", force: :cascade do |t|
     t.json "bullets", null: false
+    t.json "coverage"
     t.datetime "created_at", null: false
     t.date "date", null: false
+    t.string "hero_sci_name"
     t.string "source"
     t.json "sources", null: false
     t.datetime "updated_at", null: false
@@ -214,7 +234,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_08_120000) do
     t.text "description_ga"
     t.datetime "fetched_at"
     t.datetime "fetched_ga_at"
+    t.datetime "fetched_photo_at"
     t.datetime "fetched_song_at"
+    t.string "photo_credit"
+    t.string "photo_url"
     t.string "sci_name", null: false
     t.string "song_url"
     t.datetime "updated_at", null: false
@@ -240,11 +263,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_08_120000) do
     t.datetime "created_at", null: false
     t.string "email"
     t.date "last_digest_on"
+    t.string "letter_token"
     t.string "name"
     t.string "provider", null: false
     t.string "uid", null: false
     t.datetime "updated_at", null: false
     t.index ["email"], name: "index_users_on_email"
+    t.index ["letter_token"], name: "index_users_on_letter_token", unique: true
     t.index ["provider", "uid"], name: "index_users_on_provider_and_uid", unique: true
   end
 

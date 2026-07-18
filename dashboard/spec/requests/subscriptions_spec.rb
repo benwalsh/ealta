@@ -95,4 +95,40 @@ RSpec.describe 'Subscriptions' do
     expect(response).to have_http_status(:ok)
     expect(sub.reload.active).to be(false)
   end
+
+  it 'honours a mailbox provider one-click POST (no CSRF token, no login)' do
+    sub = create(:user).subscriptions.create!(alert_type: 'species', sci_name: 'Crex crex')
+    post "/subscriptions/#{sub.token}/unsubscribe"
+    expect(response).to have_http_status(:ok)
+    expect(sub.reload.active).to be(false)
+  end
+
+  describe 'the daily-letter one-click unsubscribe' do
+    it 'drops the reader out of the letter — roundup off, digesting follow silenced' do
+      user = create(:user)
+      user.subscriptions.create!(alert_type: 'roundup', cadence: 'digest')
+      follow = user.subscriptions.create!(alert_type: 'species', sci_name: 'Crex crex', cadence: 'digest')
+
+      get "/letter/#{user.letter_token}/unsubscribe"
+
+      expect(response).to have_http_status(:ok)
+      expect(user.subscriptions.active.digesting).to be_empty       # no longer a letter recipient
+      expect(follow.reload.active).to be(true)                      # still followed, just silent
+      expect(follow.cadence).to eq('off')
+    end
+
+    it 'accepts the one-click POST too' do
+      user = create(:user)
+      user.subscriptions.create!(alert_type: 'roundup', cadence: 'digest')
+      post "/letter/#{user.letter_token}/unsubscribe"
+      expect(response).to have_http_status(:ok)
+      expect(user.subscriptions.active.digesting).to be_empty
+    end
+
+    it 'shows a friendly page for an unknown token' do
+      get '/letter/nope/unsubscribe'
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("isn't valid")
+    end
+  end
 end
