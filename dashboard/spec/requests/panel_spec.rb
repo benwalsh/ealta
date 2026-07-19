@@ -1,9 +1,35 @@
 require 'rails_helper'
 
 RSpec.describe 'Panel' do
+  # The almanac reads its cache from storage/almanac.json — a gitignored artefact that only a
+  # station which has actually run writes. Left alone, the panel's tide zone rendered only on a
+  # machine that happened to have one lying about with extrema later than the frozen clock, so
+  # these specs passed locally and failed on a fresh clone or in CI. Pin a fixture instead: the
+  # real read/live_tide logic against fixed input.
+  let(:almanac_dir) { Pathname(Dir.mktmpdir) }
+  let(:almanac_file) do
+    almanac_dir.join('almanac.json').tap do |f|
+      f.write({
+        coords:       { lat: 53.35, lon: -9.88, place: { en: nil, ga: nil } },
+        weather:      { temp: 16, text: 'fair', text_ga: 'breá', emoji: '🌤️' },
+        sun:          { rise: '05:35', set: '21:56' },
+        # Straddles the 29 June 09:00 these specs freeze at, so the NEXT turning point is
+        # always the 10:20Z high — the tide zone can't depend on the day it's run.
+        tide_extrema: [{ t: '2026-06-29T04:15:00Z', type: 'low' },
+                       { t: '2026-06-29T10:20:00Z', type: 'high' },
+                       { t: '2026-06-29T16:40:00Z', type: 'low' }],
+        tide_station: { en: 'The harbour', ga: 'An caladh' },
+        fetched_at:   '2026-06-29T08:00:00+01:00'
+      }.to_json)
+    end
+  end
+
+  after { FileUtils.remove_entry(almanac_dir) if almanac_dir.exist? }
+
   # The panel surfaces exist only for a station WITH a configured screen (station.yml
   # `screen:`), so these specs run as one. The gating itself is asserted at the bottom.
   before do
+    stub_const('Almanac::STORE', almanac_file)
     allow(Station).to receive(:screen).
       and_return({ name: 'Test panel', width: 480, height: 800 })
   end
