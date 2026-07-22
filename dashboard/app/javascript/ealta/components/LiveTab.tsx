@@ -8,6 +8,7 @@ import { TodaySpark } from './TodaySpark'
 import { AlmanacRow } from './AlmanacRow'
 import { NotableBlock } from './NotableBlock'
 import { LiveLists } from './LiveLists'
+import { DetectionStats } from './DetectionStats'
 import type { NotableItem } from '../types'
 
 // The condensed masthead's height — the hits strip pins just under it (see .ed-hits
@@ -65,9 +66,18 @@ export function LiveTab({
     return () => window.removeEventListener('resize', measure)
   }, [data])
 
+  // The waiting state RESERVES the collage's box rather than collapsing to a line of dots.
+  // /api/overview gates the whole view, so this placeholder is what the first paint shows;
+  // swapping a ~140px stub for the ~780px real thing moved the entire page under the reader
+  // and was measured as a 0.93 layout shift — nearly a full viewport, and the thing that made
+  // the page *feel* slow even once the images themselves were arriving quickly.
+  // The box is reserved in CSS (.ed-stage-waiting) via the collage's fixed 800×480 aspect, so
+  // it matches at every width without this component knowing the viewport.
   if (isLoading || !data) {
     return (
-      <p style={{ textAlign: 'center', padding: '60px', color: 'var(--ink-soft)' }}>{isError ? '—' : '…'}</p>
+      <section className="ed-stage is-waiting" aria-busy={!isError}>
+        <div className="ed-stage-waiting">{isError ? '—' : '…'}</div>
+      </section>
     )
   }
 
@@ -83,7 +93,7 @@ export function LiveTab({
       <HitsStrip nodes={data.collage.nodes} onSelect={onSelect} pinned={pinned} />
 
       <section className="ed-stage" ref={stageRef}>
-        <Collage data={data.collage} onSelect={onSelect} />
+        <Collage data={data.collage} onSelect={onSelect} status={data.status} />
       </section>
 
       {/* Sparkline (listening status) + almanac (weather/tide/sun/moon) are NOT about
@@ -100,8 +110,15 @@ export function LiveTab({
       {data.collage.nodes.length ? (
         <>
           <NotableBlock groups={data.notable} favourites={favourites} onSelect={onSelect} />
+          <DetectionStats
+            detections={data.stats.detections}
+            species={data.stats.species}
+            durationSeconds={data.stats.duration_seconds}
+          />
           <LiveLists recent={data.recent} onSelect={onSelect} />
         </>
+      ) : data.status === 'offline' ? (
+        <p className="ed-empty">{t('As líne — the mic is quiet.', 'As líne — tá an micreafón ina thost.')}</p>
       ) : (
         <p className="ed-empty">{t('Ag éisteacht… nothing heard yet.', 'Ag éisteacht… faic cloiste fós.')}</p>
       )}

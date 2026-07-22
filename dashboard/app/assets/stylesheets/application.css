@@ -187,6 +187,18 @@ body.modal-open { overflow: hidden; }
   font: 8.5px ui-monospace, Menlo, monospace; letter-spacing: 0.14em;
   text-transform: uppercase; color: var(--ink-soft); font-style: normal;
 }
+/* Curated literary lore (bird_lore.yml): a title, its prose and/or a set-apart verse, a context
+   note, and a composed book credit — the modal's echo of the journal's Bird Lore & Wisdom block. */
+.modal-lore-title { display: block; margin-bottom: 4px; font-style: italic; color: var(--ink-2); }
+.modal-lore-text { display: block; }
+.modal-lore-verse { display: block; margin-top: 8px; white-space: pre-line; font-style: italic; }
+.modal-lore-note {
+  display: block; margin-top: 8px; font-style: normal; font-size: 12.5px; color: var(--ink-soft);
+}
+.modal-lore-credit {
+  display: block; margin-top: 8px;
+  font: 9.5px ui-monospace, Menlo, monospace; font-style: normal; color: var(--ink-soft);
+}
 .modal-lore-src {
   display: inline-flex; flex-wrap: wrap; gap: 4px 12px; margin-left: 8px;
   font: 9.5px ui-monospace, Menlo, monospace; font-style: normal;

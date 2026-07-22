@@ -250,13 +250,33 @@ class DailyFacts
     first_seen_dates[sci] == date
   end
 
+  # The three scoring lookups below all used to run PER SPECIES — one query each, for every
+  # credible bird heard today. On a forty-species day that is a hundred and twenty round trips
+  # to build one note, and against RDS the latency dwarfs the work. Each is now a single
+  # grouped scan over its window, memoised for this instance's lifetime: the queries went from
+  # 3N to 3. The windows are wide (up to RARE_WINDOW_DAYS) but they are grouped aggregates the
+  # database does in one pass, not N index probes across the network.
+
+  # Every species heard in the arrival window BEFORE today. Absence from this set is the
+  # seasonal-return signal.
+  def arrival_window_species
+    @arrival_window_species ||=
+      Detection.where(Date: (date - ARRIVAL_WINDOW_DAYS)...date).distinct.pluck(:Sci_Name).to_set
+  end
+
+  # Distinct days each species was heard across the rare-local window, keyed by Sci_Name.
+  # Only built once the station is old enough for the flag to mean anything.
+  def days_heard_in_rare_window
+    @days_heard_in_rare_window ||=
+      Detection.where(Date: (date - RARE_WINDOW_DAYS)..date).group(:Sci_Name).distinct.count(:Date)
+  end
+
   # Heard today but absent for the whole arrival window before today (and not an
   # all-time-first). The seasonal-return signal.
   def year_first?(sci)
     return false if all_time_first?(sci)
 
-    window = (date - ARRIVAL_WINDOW_DAYS)...date
-    Detection.where(Sci_Name: sci, Date: window).none?
+    arrival_window_species.exclude?(sci)
   end
 
   # Locally scarce: heard on only a handful of the last RARE_WINDOW_DAYS days.
@@ -264,8 +284,7 @@ class DailyFacts
   def rare_local?(sci)
     return false if station_age_days < RARE_MIN_AGE_DAYS
 
-    window = (date - RARE_WINDOW_DAYS)..date
-    days_heard = Detection.where(Sci_Name: sci, Date: window).distinct.count(:Date)
+    days_heard = days_heard_in_rare_window[sci].to_i
     days_heard.positive? && days_heard <= RARE_MAX_DAYS
   end
 
@@ -283,14 +302,22 @@ class DailyFacts
     nil
   end
 
+  # Daily counts across the baseline window, bucketed by species: { sci => [n, n, …] }, one
+  # entry per day that species was heard. Grouping by (Sci_Name, Date) in the database and
+  # bucketing here costs one query for every species instead of one each.
+  def baseline_counts_by_species
+    @baseline_counts_by_species ||=
+      Detection.where(Date: (date - BASELINE_DAYS)...date).group(:Sci_Name, :Date).count.
+      each_with_object({}) { |((sci, _day), count), acc| (acc[sci] ||= []) << count }
+  end
+
   # Mean daily count on the days this species was heard in the trailing window
   # (excluding today), or nil if too thin to trust.
   def species_baseline(sci)
-    window = (date - BASELINE_DAYS)...date
-    by_day = Detection.where(Sci_Name: sci, Date: window).group(:Date).count
+    by_day = baseline_counts_by_species.fetch(sci, [])
     return nil if by_day.size < BASELINE_DAYS / 2
 
-    by_day.values.sum.to_f / by_day.size
+    by_day.sum.to_f / by_day.size
   end
 
   # The single species to feature: highest importance, ties broken all_time_first

@@ -10,14 +10,17 @@ On a full day give each notable bird its own bullet with a striking detail of it
 quiet day one or two birds is plenty. (Folklore is handled elsewhere — it renders as a
 quoted, attributed passage, never woven into this note.)
 
-NUMBERS ARE NOT THE POINT. This is a diary, not a scoreboard, and nobody is collecting a
-score. The day's figures (totals, the most-detected species, quieter/busier) are texture you
-may weave AROUND the birds — never the headline, and never a bare "N species and N
-detections logged today, most heard X, Y, Z" recap. That flat recap is exactly what NOT to
-write; a note that is only counts has failed. Prefer a number only where it genuinely tells
-the reader something ("the herring gull led the day"); two or three figures in the whole
-entry is plenty, and an entry with none at all is perfectly good if the birds are
-interesting. Never open with a figure.
+NO NUMBERS. This is a diary, not a scoreboard, and nobody is collecting a score — the figures
+are shown separately and speak for themselves. Do not state counts, totals or rankings in the
+note: not "N species", not "N detections", not "the most heard", not "led the day". An entry
+with no numbers at all is exactly right.
+
+NO ROLL-CALL. The full list of what was heard is shown right beside the note, so the note must
+NOT recite it. Never pad the entry with the routine birds — no "the usual tits, robins and
+jackdaws were among the recordings", no "also heard were …", no list of common species for
+its own sake. Every bullet has to earn its place by saying something genuinely interesting;
+a line that only names ordinary birds is not worth writing. If the day is quiet, one short
+line on the single most characterful bird is the whole entry — do not stretch it with a list.
 
 Open the entry with the LEAD bird named in the facts — it is the day's hero. When it carries
 genuine news (an all-time first or a year-first), feature that (with the Irish name in
@@ -27,16 +30,15 @@ the rest of the day, and any other notable birds, follow.
 USING THE "About the birds" MATERIAL:
 - It is the ONLY source of characterising detail you may state about a species. Never
   add a fact from your own knowledge — it may be wrong.
-- If a bird has NO entry in that material — including a brand-new arrival — name it and
-  report the plain event (that it was logged, its count), and say NOTHING characterising
-  about it. Do NOT reach into your own knowledge for its behaviour, folklore, symbolism,
-  or status, not even hedged ("often said to…", "has carried symbolic weight"). Better a
-  bare, true line than an invented one.
+- If a bird has NO entry in that material — including a brand-new arrival — name it and say
+  only that it was heard, and say NOTHING characterising about it. Do NOT reach into your own
+  knowledge for its behaviour, folklore, symbolism, or status, not even hedged ("often said
+  to…", "has carried symbolic weight"). Better a bare, true line than an invented one.
 - Reach for the one surprising, repeatable thing (a remarkable habit, a voice, an
   extreme). Put it in your own plain words; do not copy a source sentence. Skip the
   dull — taxonomy, size, what it resembles.
-- Connect a fact to the day where it reads naturally ("the herring gull led the day at
-  203 — a bird that will …"), but don't force every bird to carry one.
+- Connect a fact to the day where it reads naturally ("the herring gull was among them — a
+  bird that will …"), but don't force every bird to carry one.
 
 TONE: warm but understated. A quiet rural station, not a nature documentary. Restraint
 over enthusiasm.
@@ -49,18 +51,14 @@ FACTUAL RULES — these are absolute:
   sky. The station cannot observe why a bird was heard.
 - Tide may be mentioned ONLY for an item carrying a tide phase field, ONLY as
   co-occurrence, never as cause.
-- Counts, species totals, and "first" claims come verbatim from the facts. Never
-  estimate, round differently, or embellish a number.
-- A COUNT IS HOW MANY TIMES A BIRD WAS HEARD, NOT HOW MANY BIRDS. The station records
-  sounds; it cannot count individuals, and one bird calling all morning is many
-  detections. Write "heard twice", "recorded 137 times", "two detections" — NEVER
-  "two birds", "137 house sparrows", "two birds logged", or anything that turns a
-  count of recordings into a count of creatures. This is the easiest way to state
-  something false, so it is worth the extra care every time.
-- The items are listed in IMPORTANCE order, which is NOT count order. Only the single
-  species on the "Most detected today by count" line is the most heard / most detected;
-  never attach that superlative to any other species. Give every other species its
-  actual number.
+- "First" claims come verbatim from the facts — never invent or embellish one.
+- A COUNT IS DETECTIONS, NOT HOW MANY BIRDS. The station records sounds; it cannot count
+  individuals, and one bird calling all morning is many detections. Even while stating no
+  numbers, never imply a count of creatures — never "two birds", "137 house sparrows",
+  "two birds logged", or anything that turns recordings into individuals.
+- The items are listed in IMPORTANCE order. Write about the ones flagged notable; leave the
+  routine birds OUT of the note — they are already in the figures, and reciting them makes a
+  dull entry. (The LEAD bird is the one exception: it opens the entry even on a quiet day.)
 - unusual_volume_high means that species was heard MORE than its usual daily amount;
   unusual_volume_low means FEWER. Never say a bird was busier or above normal when its
   flag is unusual_volume_low — that is backwards.

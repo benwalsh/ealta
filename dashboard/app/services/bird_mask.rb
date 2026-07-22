@@ -11,6 +11,21 @@ class BirdMask
       cache.fetch(slug) { cache[slug] = build(slug) }
     end
 
+    # Every illustration slug the profile has a silhouette for (the keys of masks.json), including
+    # the "-2" flight variants. masks.json is the small manifest that ships IN the app image, so
+    # this is the one enumeration of the illustrated set that works everywhere — including the
+    # cloud, where the PNGs themselves live only on the illustrations CDN, not the container's disk.
+    def slugs
+      table.keys
+    end
+
+    # Drop the memoized manifest — for specs that swap the active profile (and thus its art)
+    # mid-run; in production the profile is fixed, so this is never called.
+    def reset!
+      @table = nil
+      @cache = nil
+    end
+
     private
 
     def build(slug)

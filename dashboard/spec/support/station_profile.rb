@@ -25,5 +25,6 @@ RSpec.configure do |config|
     StationProfile.reset!
     SpeciesCatalog.reset!
     BirdName.reset!
+    BirdMask.reset!
   end
 end

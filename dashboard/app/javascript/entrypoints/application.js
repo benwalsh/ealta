@@ -4,4 +4,5 @@
 import '@hotwired/turbo-rails'
 import '../controllers'
 // The station/kiosk footers render the same Tabler line-icons the SPA almanac uses.
-import '@tabler/icons-webfont/dist/tabler-icons.min.css'
+// Subset of the Tabler webfont — only the glyphs app/ uses (447KB -> 4KB). See app.tsx.
+import '../styles/tabler-icons-subset.css'

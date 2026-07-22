@@ -3,7 +3,17 @@ import type { CollageData } from '../types'
 
 // The Ruby-packed collage: nodes come from /api/overview (CollagePresenter), we
 // just draw them. Hover captions a bird; clicking opens its modal.
-export function Collage({ data, onSelect }: { data: CollageData; onSelect: (sci: string) => void }) {
+// `status` shapes the empty-collage line: "ag éisteacht…" only reads true when the mic
+// is actually up — an offline station is not listening, so it says "as líne…" instead.
+export function Collage({
+  data,
+  onSelect,
+  status,
+}: {
+  data: CollageData
+  onSelect: (sci: string) => void
+  status: 'listening' | 'offline'
+}) {
   const [cap, setCap] = useState<{ ga: string | null; en: string; count: number } | null>(null)
 
   return (
@@ -28,7 +38,7 @@ export function Collage({ data, onSelect }: { data: CollageData; onSelect: (sci:
             fontSize={30}
             fill="var(--ink-soft, #8b8b91)"
           >
-            ag éisteacht…
+            {status === 'offline' ? 'as líne…' : 'ag éisteacht…'}
           </text>
         )}
         {data.nodes.map((n, i) => (

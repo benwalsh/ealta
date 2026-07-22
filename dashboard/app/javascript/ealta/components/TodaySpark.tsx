@@ -30,8 +30,9 @@ export function TodaySpark({
   return (
     <section className="today-spark" style={{ top: stickyTop }}>
       <div className="today-spark-head">
+        {/* The window's total detections used to sit here; it now heads Recently heard as part
+            of the shared stats line (detections · species · duration). */}
         <WindowPicker windows={windows} value={value} onChange={onChange} />
-        <span className="today-spark-total">{today.total.toLocaleString()}</span>
       </div>
       <Sparkline paths={today.sparkline} />
       <div className="today-anchors">

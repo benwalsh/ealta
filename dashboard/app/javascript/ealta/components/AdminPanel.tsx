@@ -12,6 +12,7 @@ type Result = { ok: boolean; message: string }
 
 const SECTIONS = [
   { id: 'overview', label: 'Overview' },
+  { id: 'device', label: 'Device' },
   { id: 'station', label: 'Station' },
   { id: 'content', label: 'Content' },
   { id: 'email', label: 'Email' },
@@ -27,6 +28,34 @@ const STATUS: Record<string, string> = {
   quiet: 'No signal recently',
   stale: 'Not responding',
   none: 'Nothing heard yet',
+}
+
+// A vital sign, or an em dash. Null from the device means "could not read this", never zero —
+// so an unknown must render as visibly absent rather than as a number nobody measured.
+function Vital({ label, value, warn }: { label: string; value: string | null; warn?: boolean }) {
+  return (
+    <li className="acct-rule">
+      <span className="acct-rule-label">{label}</span>
+      <span className={warn ? 'adm-warn' : undefined}>{value ?? '—'}</span>
+    </li>
+  )
+}
+
+// Uptime as the coarse figure anyone actually wants ("6d", "4h"). Seconds on a wall-mounted
+// box is a precision nobody has ever needed.
+function duration(seconds: number | null | undefined): string | null {
+  if (seconds == null) return null
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`
+  if (seconds < 86_400) return `${Math.floor(seconds / 3600)}h`
+  return `${Math.floor(seconds / 86_400)}d`
+}
+
+// What the last panel run did, in words. The distinction that matters: "skipped" is healthy —
+// the shooter deliberately doesn't burn an e-ink refresh when the station screen is unchanged.
+const PANEL_OUTCOME: Record<string, string> = {
+  pushed: 'refreshed the panel',
+  skipped: 'nothing had changed',
+  failed: 'the refresh failed',
 }
 
 // The station console. Two kinds of thing only: what an admin can do, and what fails quietly.
@@ -111,6 +140,10 @@ export function AdminPanel({ onClose, onBack }: { onClose: () => void; onBack?: 
   }
 
   const l = h?.listening
+  // Defaulted rather than optional-chained everywhere: a cloud that hasn't been redeployed
+  // alongside the device can serve a health payload with no device block at all, and the
+  // console must degrade to "nothing reported" rather than to a blank panel.
+  const d = h?.device ?? { reporting: 'none' as const }
 
   // The address mail goes out as. Which box actually runs the sweep is deployment trivia and
   // stays out of the copy — sends_here only decides whether a missing address is a FAULT
@@ -224,6 +257,114 @@ export function AdminPanel({ onClose, onBack }: { onClose: () => void; onBack?: 
                       </button>
                     </div>
                   </div>
+                )}
+              </>
+            )}
+
+            {section === 'device' && (
+              <>
+                <h2 className="acct-h2">Device</h2>
+                {/* Everything in this section is a REPORT from the wall, not something the
+                    cloud knows. So the first thing said is when it was made — a station that
+                    stopped reporting must never be able to look like one reporting good news. */}
+                {d.reporting === 'none' ? (
+                  <p className="adm-lead">
+                    The station has not reported on itself yet. This needs a device running the push with
+                    vitals; the cloud mirror has nothing of its own to show here.
+                  </p>
+                ) : (
+                  <>
+                    <p className="adm-lead">
+                      <span className={`adm-dot ${d.reporting === 'fresh' ? 'fresh' : 'stale'}`} />
+                      <span>
+                        {d.reporting === 'fresh' ? 'Reporting' : 'Last reported'} {ago(d.received_at ?? null)}
+                      </span>
+                      {d.received_at && <span className="adm-abs">{stamp(d.received_at)}</span>}
+                    </p>
+
+                    {/* Already sentences from the server — the device decodes its own bitfields,
+                        so nothing here is ever a hex code to look up. */}
+                    {(d.warnings ?? []).map((w) => (
+                      <p key={w} className="adm-flash is-alert">
+                        {w}
+                      </p>
+                    ))}
+
+                    <ul className="acct-rules adm-mt">
+                      <Vital
+                        label="Panel last refreshed"
+                        value={d.panel?.pushed_at ? ago(d.panel.pushed_at) : 'Never'}
+                        warn={!d.panel?.pushed_at}
+                      />
+                      <Vital
+                        label="Panel last checked"
+                        value={
+                          d.panel?.ran_at
+                            ? `${ago(d.panel.ran_at)} — ${PANEL_OUTCOME[d.panel.outcome ?? ''] ?? 'unknown'}`
+                            : null
+                        }
+                        warn={d.panel?.outcome === 'failed'}
+                      />
+                      <Vital
+                        label="Version"
+                        value={
+                          d.version?.sha
+                            ? `${d.version.sha}${d.version.dirty ? ' (edited on the box)' : ''}`
+                            : null
+                        }
+                        warn={d.version?.dirty === true}
+                      />
+                      <Vital label="Up for" value={duration(d.uptime)} />
+                      <Vital
+                        label="Offsite backup reached"
+                        value={
+                          d.litestream?.error
+                            ? d.litestream.error
+                            : d.litestream?.at
+                              ? ago(d.litestream.at)
+                              : null
+                        }
+                        warn={!!d.litestream?.error}
+                      />
+                      <Vital
+                        label="Card space free"
+                        value={d.disk?.free_mb != null ? `${(d.disk.free_mb / 1024).toFixed(1)} GB` : null}
+                      />
+                      <Vital label="Temperature" value={d.cpu_temp_c != null ? `${d.cpu_temp_c}°C` : null} />
+                      {/* Power reads as words, never a throttle code. Unknown (no vcgencmd, i.e.
+                          not a Pi) is left blank rather than claimed as fine. */}
+                      <Vital
+                        label="Power"
+                        value={
+                          d.power?.now
+                            ? 'Sagging now'
+                            : d.power?.since_boot
+                              ? 'Sagged since boot'
+                              : d.power?.since_boot === false
+                                ? 'Steady'
+                                : null
+                        }
+                        warn={!!d.power?.now || !!d.power?.since_boot}
+                      />
+                      <Vital label="Microphone" value={d.mic_name ?? null} />
+                    </ul>
+
+                    {d.services && (
+                      <ul className="acct-rules adm-mt">
+                        {Object.entries(d.services).map(([name, unit]) => (
+                          <Vital
+                            key={name}
+                            label={name}
+                            // Restarts are shown alongside the state because the state alone
+                            // hides a crash loop: "active" on its two-hundredth start reads
+                            // exactly like "active" on its first.
+                            value={`${unit.state ?? 'unknown'}${unit.restarts ? ` · ${unit.restarts} restarts` : ''}`}
+                            warn={unit.state !== 'active'}
+                          />
+                        ))}
+                      </ul>
+                    )}
+                  </>
                 )}
               </>
             )}

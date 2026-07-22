@@ -109,29 +109,60 @@ module Enrichment
         bundle
       end
 
+      # One PLACE → a stored dúchas folklore bundle, or nil when nothing on-topic was retrieved. The
+      # bundle reuses EnrichmentBundle, keyed by a namespaced "place:<display>" so the block store,
+      # vetting and rotation all come for free. `terms` are the ordered search variants from the
+      # station's duchas_places table (spellings, then the Irish form); `display` is the canonical
+      # name the Journal shows whatever variant found the story. Gated on an LLM being configured.
+      def build_place(display:, terms:)
+        return nil unless Bedrock.available?
+
+        blocks = subject_blocks(label:  "place:#{display}",
+                                system: format(Prompts.get('place.system'), place: station_place),
+                                task:   place_task(display, terms))
+        return nil if blocks.empty?
+
+        EnrichmentBundle.find_or_initialize_by(sci_name: "place:#{display}", date: Date.current).
+          tap { |b| b.update!(common_name: display, blocks: blocks.map(&:to_h)) }
+      end
+
       private
+
+      def place_task(display, terms)
+        "Place: #{display}.\nSearch terms to try, in order: #{Array(terms).compact.join(', ')}."
+      end
 
       def gate_species(date)
         EnrichmentGate.species_for(DailyFacts.for(date: date))
       end
 
-      # Run the tool-use loop and return the surviving validated Blocks.
-      def source_blocks(sci_name:, common_name:)
+      # A subject (a bird, a place, a day) → the surviving validated Blocks. Drives the tool-use
+      # loop with the caller's system prompt + opening task; a block survives only if it validates
+      # AND cites a URL actually fetched this run. `label` names the run in the fetch log.
+      def subject_blocks(label:, system:, task:)
         @last_error = nil
         run_id = SecureRandom.uuid
-        fetcher = SourceFetcher.new(sci_name: sci_name, run_id: run_id)
-        final = converse_loop(sci_name: sci_name, common_name: common_name, fetcher: fetcher)
+        fetcher = SourceFetcher.new(sci_name: label, run_id: run_id)
+        final = run_loop(system: system, task: task, fetcher: fetcher)
         fetched = SourceFetchLog.where(run_id: run_id).pluck(:url).to_set
         parse_blocks(final).filter_map { |raw| vet(raw, fetched) }
       rescue StandardError => e
         @last_error = e
-        Rails.logger.warn("Enrichment::Builder: #{sci_name} failed (#{e.class}: #{e.message})")
+        Rails.logger.warn("Enrichment::Builder: #{label} failed (#{e.class}: #{e.message})")
         []
       end
 
-      def converse_loop(sci_name:, common_name:, fetcher:)
-        system = format(Prompts.get('enrichment.system'), place: station_place)
-        messages = [{ role: 'user', content: [{ text: task_message(sci_name, common_name) }] }]
+      # The bird sourcing pass — its prompt and opening task, through the generic loop.
+      def source_blocks(sci_name:, common_name:)
+        subject_blocks(label:  sci_name,
+                       system: format(Prompts.get('enrichment.system'), place: station_place),
+                       task:   task_message(sci_name, common_name))
+      end
+
+      # The generic tool-use loop: drive Claude with fetch_source until it stops (or the round cap
+      # forces a finalise), returning its final text. Subject-agnostic — the caller owns the prompt.
+      def run_loop(system:, task:, fetcher:)
+        messages = [{ role: 'user', content: [{ text: task }] }]
 
         MAX_ROUNDS.times do
           resp = Bedrock.converse_tools(system: system, messages: messages, tools: [FETCH_TOOL])

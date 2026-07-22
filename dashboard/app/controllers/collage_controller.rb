@@ -76,19 +76,27 @@ class CollageController < ApplicationController
     # and a stopped station is still obvious at a glance.
     @printed_at = now.change(min: now.min < 30 ? 0 : 30, sec: 0)
     @printed_on = TodayCard.stamp_date(@printed_at)
-    # The collage is a FROZEN daily edition — the day's flock packed once and held, so the
-    # panel reads like a printed field-guide plate, not a churning dashboard. New birds land
-    # only in the live line below; tomorrow brings a fresh plate. Cached by the Dublin date
-    # (the packer is date-seeded, so a fixed input is a fixed layout all day).
-    edition = Rails.cache.fetch("station-edition-#{now.to_date}", expires_in: 26.hours) do
+    # The plate repacks on the SAME half-hour beat as the stamp, so it shows the day as it
+    # stands. It used to be frozen for the whole day to spare the panel, but that reasoning
+    # was wrong: the stamp already changes every 30 minutes, so the refresh happens either
+    # way and the freeze bought no flashes — it only meant the plate disagreed with the live
+    # line beneath it. On a day holding one bird that read as a mislabelled illustration.
+    # Keyed on @printed_at so plate and stamp move together and a mid-cycle read is stable
+    # (the packer is date-seeded, so a fixed input is a fixed layout within the window).
+    edition = Rails.cache.fetch("station-edition-#{@printed_at.to_i}", expires_in: 2.hours) do
       Detection.tally_within(current_window)
     end
     # Sized to the plate box the four-zone panel leaves (480×800 less the padding, the news
-    # line, the almanac bar and the footer), so the flock fills it rather than floating in it.
-    @collage = CollagePresenter.new(edition, width: 428, height: 578, top_inset: 4, bottom_inset: 4,
+    # line, the almanac bar, the tide line and the footer), so the flock fills it rather than
+    # floating in it. 428×601 is MEASURED, not derived — and it is only a fixed number now that
+    # the news line always renders exactly one span. While that line could also carry a latest
+    # arrival it stood 111px tall instead of 64px, so the plate box swung between 554 and 601
+    # and no single height was right for both: the collage overflowed and shrank on a day with
+    # an arrival, and floated on a day without one. Re-measure (not recompute) if any zone's
+    # type or padding changes.
+    @collage = CollagePresenter.new(edition, width: 428, height: 601, top_inset: 4, bottom_inset: 4,
                                              margin: 6, x_bias: 0.82, y_bias: 1.0)
     @species_today = Detection.tally_for.size
-    @arrival = latest_arrival
     @status = station_status(now)
     # The panel's bar is the simplified almanac — temperature, moon, sunrise, sunset — as four
     # marks read at a glance. Place is dropped (self-evident on the wall it hangs on), but the
@@ -98,18 +106,6 @@ class CollageController < ApplicationController
     items = TodayCard.almanac.reject { |item| item[:icon] == 'ti-map-pin' }
     @tide = items.find { |item| item[:icon] == 'ti-ripple' }
     @almanac = items - [@tide].compact
-  end
-
-  # The most recent species to make its FIRST appearance today, with that time — the one
-  # addition worth a line while the frozen plate stays put. nil until something is heard.
-  def latest_arrival
-    firsts = Detection.on_date(Time.zone.today).group(:Sci_Name).minimum(Arel.sql(Detection.when_sql))
-    return nil if firsts.blank?
-
-    sci, whenstr = firsts.max_by { |_sci, w| w.to_s }
-    { name: BirdName.lookup(sci), at: Time.zone.parse(whenstr.to_s) }
-  rescue ArgumentError, TypeError
-    nil
   end
 
   # Is the recorder alive? The freshest of a heartbeat tick or a detection — "listening" if
@@ -131,6 +127,7 @@ class CollageController < ApplicationController
     @screens = KIOSK_SCREENS
     @collage = CollagePresenter.new(tally, width: 900, height: 620)
     @species_today = Detection.tally_for.size
+    @status = station_status(Time.current)
     @detections_today = Detection.today.count
     @species_all_time = Detection.life_list.size
     @detections_all_time = Detection.count

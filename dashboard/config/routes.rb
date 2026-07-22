@@ -76,6 +76,8 @@ Rails.application.routes.draw do
   # The Pi's lazy push lands here (cloud mirror only; 404 on the Pi). Token-authed.
   post 'ingest/detections' => 'ingest#detections'
   post 'ingest/heartbeats' => 'ingest#heartbeats'
+  # Device vitals — one snapshot row, overwritten each push (not a stream like the two above).
+  post 'ingest/vitals' => 'ingest#vitals'
 
   # JSON API for the React SPA (and, later, a public API host). Read-only GETs.
   namespace :api do

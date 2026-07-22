@@ -42,6 +42,39 @@ RSpec.describe Enrichment::SeedLore do
       expect(described_class.blocks_for('Erithacus rubecula')).to eq([])
     end
 
+    it 'carries a literary entry\'s title, verse, note and composed book credit' do
+      stub_lore('Cygnus cygnus' => {
+                  'kind' => 'legend', 'title' => 'The Fate of the Children of Lir',
+                  'text' => 'She led the children to the edge of the lake…',
+                  'quote' => "Out to your home, ye swans, on Darvra's wave;",
+                  'note' => 'The stepmother Aoife turns the children into swans.',
+                  'attribution' => 'trans. P. W. Joyce', 'source_work' => 'Old Celtic Romances',
+                  'year_translation' => 1879
+                })
+
+      block = described_class.blocks_for('Cygnus cygnus').first
+      attrs = block.to_h
+
+      expect(attrs[:lore_kind]).to eq('legend')
+      expect(attrs[:title]).to eq('The Fate of the Children of Lir')
+      expect(attrs[:quote]).to eq("Out to your home, ye swans, on Darvra's wave;")
+      expect(attrs[:note]).to eq('The stepmother Aoife turns the children into swans.')
+      expect(attrs[:credit]).to eq('trans. P. W. Joyce · Old Celtic Romances (1879)')
+    end
+
+    it 'keeps a verse-only entry (no prose text, but a set-apart quote)' do
+      stub_lore('Turdus merula' => {
+                  'kind' => 'poem', 'title' => 'The Blackbird of Letter Lee',
+                  'quote' => 'And the blackbird singing in Letter Lee.',
+                  'attribution' => 'Ossianic lay'
+                })
+
+      block = described_class.blocks_for('Turdus merula').first
+      expect(block).to be_present
+      expect(block.text.to_s.strip).to eq('') # no prose body …
+      expect(block.to_h[:quote]).to eq('And the blackbird singing in Letter Lee.') # … but the verse survives
+    end
+
     it 'credits a dúchas entry to the Schools\' Collection\'s required terms' do
       stub_lore('Erithacus rubecula' => {
                   'kind'   => 'lore',

@@ -65,6 +65,26 @@ export function shortDate(value: string | null, lang: Lang = 'en'): string {
   return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`
 }
 
+// A listening-duration figure for the stats line: whole hours, days rolled up past 24 — "15h",
+// "1d", "5d14h". Sub-hour spans round to the nearest hour, shown as "<1h" when that rounds to zero
+// but some time was covered. null → nothing (the "all time" span carries no listening duration).
+export function formatDuration(seconds: number | null): string | null {
+  if (seconds == null) return null
+  const hours = Math.round(seconds / 3600)
+  if (hours < 1) return seconds > 0 ? '<1h' : '0h'
+  if (hours < 24) return `${hours}h`
+  const d = Math.floor(hours / 24)
+  const h = hours % 24
+  return h ? `${d}d${h}h` : `${d}d`
+}
+
+// Just the clock: "22:05". For a FINISHED day, where "16h ago" measures the distance to now
+// rather than saying anything about the day itself — the Journal's Heard this day.
+export function clock(value: string | null): string {
+  if (!value) return '—'
+  return at(value).toLocaleTimeString('en-IE', { hour: '2-digit', minute: '2-digit', hour12: false })
+}
+
 // "6 Jul · 22:05" / "6 Iúil · 22:05" for the modal's recordings list.
 export function stamp(value: string | null, lang: Lang = 'en'): string {
   if (!value) return ''

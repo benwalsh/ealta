@@ -46,6 +46,79 @@ RSpec.describe TodayCard do
     expect(card[:total]).to eq(0)
   end
 
+  describe '.date_label' do
+    it 'carries the year, with the Irish weekday in its proper Dé form' do
+      label = described_class.date_label(Time.zone.local(2026, 7, 20, 12))
+      expect(label[:en]).to eq('Monday, 20 July, 2026')
+      expect(label[:ga]).to eq('Dé Luain, 20 Iúil, 2026')
+    end
+
+    it 'uses the inflected weekday, not a naive "Dé" prefix (Friday → Dé hAoine)' do
+      expect(described_class.date_label(Time.zone.local(2026, 7, 24, 12))[:ga]).to start_with('Dé hAoine,')
+    end
+  end
+
+  describe '.emphasised_bullets' do
+    let(:facts) do
+      { items: [{ sci_name: 'Tringa totanus', common_name: 'common redshank', irish_name: 'cosdeargán' }] }
+    end
+
+    it 'bolds the linked primary name and italicises the secondary in its parens' do
+      bullet = described_class.emphasised_bullets(
+        ['The **common redshank** (cosdeargán) was heard.'], facts, :en
+      ).first
+      expect(bullet).to include('<strong class="bird" data-sci="Tringa totanus">common redshank</strong>')
+      expect(bullet).to include('<em class="bird-alt">cosdeargán</em>')
+    end
+
+    it 'trails a bullet with the inline citation for the bird it names' do
+      cites = { 'Tringa totanus' => [{ label: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Common_redshank' }] }
+      bullet = described_class.emphasised_bullets(
+        ['The **common redshank** was heard.'], facts, :en, cites: cites
+      ).first
+      expect(bullet).to include('<span class="bullet-cites">').
+        and include('href="https://en.wikipedia.org/wiki/Common_redshank"').
+        and include('>Wikipedia</a>')
+    end
+
+    it 'leaves the bullet citation-free when no cites are supplied (the e-ink panel path)' do
+      bullet = described_class.emphasised_bullets(['The **common redshank** was heard.'], facts, :en).first
+      expect(bullet).not_to include('bullet-cites')
+    end
+
+    it 'injects the italic second name when the prose omits it, so naming stays consistent' do
+      bullet = described_class.emphasised_bullets(['The **common redshank** was heard.'], facts, :en).first
+      expect(bullet).to include('<strong class="bird" data-sci="Tringa totanus">common redshank</strong> ' \
+                                '(<em class="bird-alt">cosdeargán</em>)')
+    end
+
+    it 'does not double up the second name the prose already carries' do
+      bullet = described_class.emphasised_bullets(
+        ['The **common redshank** (cosdeargán) was heard.'], facts, :en
+      ).first
+      expect(bullet.scan('cosdeargán').size).to eq(1)
+    end
+
+    it 'glosses a bird only once across the entry (first mention), not on every bullet' do
+      bullets = described_class.emphasised_bullets(
+        ['The **common redshank** arrived.', 'The **common redshank** called again.'], facts, :en
+      )
+      expect(bullets[0]).to include('<em class="bird-alt">cosdeargán</em>')
+      expect(bullets[1]).not_to include('bird-alt')
+    end
+  end
+
+  describe '.listening_seconds' do
+    it 'is nil for the all-time span (a lifetime is not a listening duration)' do
+      expect(described_class.listening_seconds(now: now, window_hours: 1_000_000)).to be_nil
+    end
+
+    it 'sums the covered span when no heartbeats exist at all (whole window listening)' do
+      allow(Heartbeat).to receive(:exists?).and_return(false)
+      expect(described_class.listening_seconds(now: now, window_hours: 24)).to eq(24 * 3600)
+    end
+  end
+
   describe 'coverage (the heartbeat gate)' do
     let(:empty_buckets) { Array.new(24, 0) } # no detections either
 

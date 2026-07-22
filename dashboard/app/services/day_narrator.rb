@@ -109,13 +109,12 @@ class DayNarrator
     # spec (or a human) can eyeball exactly what the model is asked. `lore` is the shape
     # returned by enrichment_for: an array of { common_name:, irish_name:, blocks: }.
     def user_message(facts, lore = [], hero = nil)
-      lines = ["Date: #{facts[:date]}. #{facts[:species_today]} species, " \
-               "#{facts[:detections_today]} detections today."]
+      # Deliberately NO counts or totals here — the note never recites numbers (they're shown as
+      # figures, and the station counts detections, not birds), so we don't even hand them over.
+      # The model gets importance order + flags to decide what to feature, nothing to tally.
+      lines = ["Date: #{facts[:date]}."]
       lines << length_directive(facts)
-      if (loudest = facts[:items].max_by { |i| i[:call_count] })
-        lines << "Most detected today by count: #{loudest[:common_name]} (#{loudest[:call_count]})."
-      end
-      lines << 'Items (name, Irish, count, importance, flags) — IMPORTANCE order, not count order:'
+      lines << 'Items (name, Irish, importance, flags) — most important first:'
       facts[:items].first(MAX_ITEMS).each { |item| lines << item_line(item) }
       lines << "Activity: #{activity_phrase(facts[:activity_note])}." if facts[:activity_note]
       lines << listening_line(facts[:listening])
@@ -235,11 +234,12 @@ class DayNarrator
       notable = Array(facts[:notable_today]).size
       shape = if notable >= 2
                 "A full day — #{notable} notable birds. Give the LEAD bird its own bullet, then a " \
-                  'striking, sourced detail on each other notable bird; routine birds are light texture.'
+                  'striking, sourced detail on each other notable bird. Leave the routine birds out.'
               elsif notable == 1
-                'One notable bird — feature it; the routine birds are light texture around it.'
+                'One notable bird — feature it. Do not pad with the routine birds; leave them out.'
               else
-                'A quiet day — keep it brief; a bullet or two on the most characterful bird is enough.'
+                'A quiet day — one or two lines on the single most characterful bird is the whole ' \
+                  'entry. Do not list the routine birds to fill space.'
               end
       "LENGTH: write #{range.min} to #{range.max} bullets. #{shape}"
     end
@@ -368,7 +368,9 @@ class DayNarrator
     def item_line(item)
       irish = item[:irish_name].present? ? " (#{item[:irish_name]})" : ''
       flags = item[:flags].join(', ')
-      line = "- #{item[:common_name]}#{irish}, #{item[:call_count]}, importance #{item[:importance]}, [#{flags}]"
+      # No count — the note doesn't tally, so the model isn't given one to echo. Importance +
+      # flags are enough to decide what to feature and what to leave as light texture.
+      line = "- #{item[:common_name]}#{irish}, importance #{item[:importance]}, [#{flags}]"
       line += "\n  Background (#{item[:common_name]}): #{item[:blurb]}" if item[:blurb].present?
       line
     end

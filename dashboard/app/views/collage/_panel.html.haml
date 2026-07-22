@@ -6,8 +6,11 @@
   -# Paper ground for the Inky screenshot; hidden in the web view (see application.css).
   %rect.collage__bg{ x: 0, y: 0, width: @collage.width, height: @collage.height, fill: "var(--paper, #fff)" }
   - if @collage.species_count.zero?
+    -# The empty-plate line. "ag éisteacht…" only reads true when the mic is up; an offline
+    -# station is not listening, so it says "as líne…" instead. @status is set on /station
+    -# (see load_station) but not on the bare /panel web endpoint, where we default to listening.
     %text{ x: @collage.width / 2, y: @collage.height / 2, "text-anchor": "middle", "font-family": serif, "font-size": 30, "font-style": "italic", fill: "var(--ink-soft, #8b8b91)" }
-      ag éisteacht…
+      = (@status && !@status[:listening]) ? 'as líne…' : 'ag éisteacht…'
   - @collage.nodes.each do |node|
     %g.collage__bird{ "data-action": "mouseenter->collage#caption mouseleave->collage#clear click->collage#open", "data-sci": node.sci, "data-ga": node.ga, "data-en": node.en, "data-count": node.count }
       - if node.image

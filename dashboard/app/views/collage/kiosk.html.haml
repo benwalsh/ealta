@@ -87,6 +87,8 @@
         %p.caption
           - if @collage.species_count.positive?
             heard around the station today
+          - elsif @status && !@status[:listening]
+            as líne…
           - else
             ag éisteacht…
 

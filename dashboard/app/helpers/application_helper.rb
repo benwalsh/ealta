@@ -52,6 +52,24 @@ module ApplicationHelper
     end
   end
 
+  # The origin (scheme + host) of the illustration CDN, for a <link rel="preconnect"> in the
+  # document head — so the browser has DNS, TCP and TLS to the art host already done before
+  # React, having waited on /api/overview, asks for the first collage image. The image request
+  # is what the LCP hangs on, and it can't be discovered in the initial HTML (the SPA injects it
+  # after the fetch), so warming the connection up front is the cheap part of that win.
+  # nil when art is served locally (/birds) — there is no separate host to reach. No crossorigin:
+  # the collage <image>/<img> loads are not CORS requests, and a preconnect must match their mode
+  # to be reused.
+  def illustration_cdn_origin
+    base = Station.setting('illustrations.base_url', env: 'ILLUSTRATIONS_BASE_URL').presence
+    return nil unless base
+
+    uri = URI.parse(base)
+    "#{uri.scheme}://#{uri.host}" if uri.scheme && uri.host
+  rescue URI::InvalidURIError
+    nil
+  end
+
   private
 
   # One cache-busting stamp for illustration URLs: masks.json's mtime, rebuilt whenever the art

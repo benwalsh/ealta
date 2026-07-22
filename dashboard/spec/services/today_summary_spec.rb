@@ -30,11 +30,13 @@ RSpec.describe TodaySummary do
   after { FileUtils.remove_entry(dir) if dir.exist? }
 
   describe '.current' do
-    it 'synthesises from facts when there is no cache (the day\'s news, not a tally)' do
+    it 'returns a bare placeholder when there is no cache — never narrates on the request path' do
+      # Narration (even the no-model facts fallback) is the warm job's work now; a page read must
+      # never pay for it. See spec/requests/api/overview_spec.rb for the request-side invariant.
+      expect(DayNarrator).not_to receive(:narrate)
       result = described_class.current(facts: facts)
-      expect(result[:source]).to eq('facts') # the fixture carries an all-time first
-      expect(result[:bullets][:en]).to include('New for the station: Common Greenshank.')
-      expect(result[:bullets][:en].join).not_to include('detections logged today')
+      expect(result[:source]).to eq('template') # hidden by the card until the warm job fills it
+      expect(result[:bullets][:en]).to eq([])
     end
 
     it 'discards a cache left over from a previous day (so "today" is never stale)' do

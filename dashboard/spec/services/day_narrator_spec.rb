@@ -21,8 +21,11 @@ RSpec.describe DayNarrator do
   describe '.user_message' do
     it 'serialises the facts object into the prompt the model sees' do
       msg = described_class.user_message(facts)
-      expect(msg).to include('3 species, 42 detections today')
-      expect(msg).to include('Common Greenshank (Laidhrín glas), 1, importance 100, [all_time_first]')
+      # No counts or totals are handed to the model — the note never recites numbers.
+      expect(msg).to include('Date: 2026-07-03.')
+      expect(msg).not_to include('42 detections')
+      expect(msg).not_to include('Most detected')
+      expect(msg).to include('Common Greenshank (Laidhrín glas), importance 100, [all_time_first]')
       expect(msg).to include('Activity: quieter than typical.')
       expect(msg).to include('Spotlight: Common Greenshank — first record at the station.')
       expect(msg).to include('Background: A wading bird.')

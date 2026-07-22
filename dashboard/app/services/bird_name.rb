@@ -20,9 +20,14 @@ class BirdName
 
   class << self
     def lookup(sci)
-      en = english.fetch(sci, sci)
+      canonical = english.fetch(sci, sci)
+      en = overrides[sci] || respell(strip_prefix(canonical))
       local = secondary[sci]
-      ga = local if local && local != en
+      # A species with no distinct second-language name has the CANONICAL English mirrored into the
+      # locale file; compare against that (not the display `en`, which the overlay may have changed)
+      # so an overridden/stripped English name doesn't turn that mirror into a bogus "second name".
+      # A genuinely missing/wrong Irish name is fixed in the locale file itself, not overridden here.
+      ga = local if local && local != canonical
       Name.new(sci:, en:, ga:)
     end
 
@@ -42,9 +47,56 @@ class BirdName
     def reset!
       @english = nil
       @secondary = nil
+      @names_config = nil
+      @overrides = nil
+      @strip_prefixes = nil
+      @replacements = nil
     end
 
     private
+
+    # The per-station English display overlay (content/bird_names.yml), applied in `lookup` over the
+    # canonical ealta label (which stays keyed to BirdNET for detection mapping): an explicit
+    # `overrides` map (a spelling — "Greylag" for the label's "Graylag" — or the subspecies we
+    # really get — "Pied Wagtail" for "White Wagtail") wins; else a `strip_prefixes` rule drops a
+    # leading "Common "/"European "/"Eurasian " so the bare bird stands ("European Robin" → "Robin").
+    # A station shipping no bird_names.yml sees the canonical name unchanged.
+    def strip_prefix(name)
+      prefix = strip_prefixes.find { |p| name.start_with?("#{p} ") && name.length > p.length + 1 }
+      prefix ? name.sub("#{prefix} ", '') : name
+    end
+
+    # Spelling replacements (British spelling), applied after prefix-stripping: e.g. the American
+    # "Gray" → "Grey" so "Gray Heron"/"Graylag" read "Grey Heron"/"Greylag".
+    def respell(name)
+      replacements.reduce(name) { |acc, (pattern, repl)| acc.gsub(pattern, repl) }
+    end
+
+    def overrides
+      @overrides ||= names_config['overrides'] || {}
+    end
+
+    def strip_prefixes
+      @strip_prefixes ||= Array(names_config['strip_prefixes']).map(&:to_s)
+    end
+
+    # [Regexp, replacement] pairs from the config's `replace` list — a bad pattern is logged and
+    # skipped rather than breaking every name lookup.
+    def replacements
+      @replacements ||= Array(names_config['replace']).filter_map do |rule|
+        pattern, repl = Array(rule)
+        next if pattern.blank?
+
+        [Regexp.new(pattern.to_s), repl.to_s]
+      rescue RegexpError => e
+        Rails.logger.warn("BirdName: skipping bad replace pattern #{pattern.inspect} (#{e.message})")
+        nil
+      end
+    end
+
+    def names_config
+      @names_config ||= StationProfile.yaml('content/bird_names.yml').then { |c| c.is_a?(Hash) ? c : {} }
+    end
 
     def english
       @english ||= load('en')

@@ -76,9 +76,18 @@ class EnrichmentBundle < ApplicationRecord
     private
 
     def display_block(block)
-      return nil if block.text.blank?
+      attrs = block.to_h
+      quote = attrs[:quote].presence
+      # A curated verse-only entry has no prose `text` at all (its verse lives in `quote`), so it
+      # must not be dropped for a blank text the way a genuinely empty block is.
+      return nil if block.text.blank? && quote.blank?
 
-      { type: block.type, text: block.text, text_ga: block.text_ga.presence,
+      { type: block.type, text: block.text.presence, text_ga: block.text_ga.presence,
+        # Curated literary lore (bird_lore.yml) carries more than a scraped passage — a title, a
+        # set-apart verse, a context note, and a composed book credit — which ride through so the
+        # species card can render the whole piece, just as the journal's Bird Lore & Wisdom does.
+        title: attrs[:title].presence, quote: quote,
+        note: attrs[:note].presence, credit: attrs[:credit].presence,
         # Keep a credit even when it has no URL — the station's seed lore cites an attribution
         # (e.g. "Ninth-century Irish poem"), not a link, and quoted material always says whence.
         # A dúchas source also carries its rights-holder, licence (+ deed link) and collector, so

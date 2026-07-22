@@ -11,7 +11,9 @@ import '@fontsource/eb-garamond/500.css'
 import '@fontsource/eb-garamond/400-italic.css'
 import '@fontsource/ibm-plex-mono/400.css'
 import '@fontsource/ibm-plex-mono/500.css'
-import '@tabler/icons-webfont/dist/tabler-icons.min.css'
+// Subset of the Tabler webfont — only the ~22 glyphs app/ uses (447KB -> 4KB). Regenerate with
+// bin/build-icon-subset after adding a ti-* class; icon_subset_spec guards drift.
+import '../styles/tabler-icons-subset.css'
 import { App } from '../ealta/App'
 
 const el = document.getElementById('ealta-app')

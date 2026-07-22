@@ -6,27 +6,33 @@
 -# to find more. There is no wordmark — the panel hangs on a wall in the house it belongs to,
 -# and 46px of masthead was the most expensive thing on the screen.
 %main.screen.station{ style: "width: #{Station.screen[:width]}px; height: #{Station.screen[:height]}px" }
-  -# The plate: the day's flock, packed once and frozen, given every pixel the other three
-  -# zones don't need. This is the panel's reason to exist.
+  -# The plate: the day's flock as it stands, repacked on the half hour with the rest of the
+  -# panel, given every pixel the other three zones don't need. The panel's reason to exist.
   %section.plate{ "aria-label": "Birds recorded today" }
     = render partial: 'panel'
 
-  -# ONE piece of news — the most recent species to make its FIRST appearance today, with the
-  -# time. The plate is frozen for the day, so this is the only line that moves; on a day with
-  -# nothing new it falls back to the running species count so the panel always says something.
+  -# ONE line of news, and it names no individual bird. It used to lead with the day's latest
+  -# ARRIVAL, which read well but could not be kept honest: that lookup was scoped to the
+  -# calendar day while the plate is a rolling 24h window, and — worse — it skipped the
+  -# credibility filter entirely, so the panel could print a lone low-confidence "Gadwall" by
+  -# name while the collage above had deliberately excluded it. A wall that names a bird the
+  -# system itself does not trust is worse than a wall that names none.
+  -#
+  -# The species count has neither flaw: it comes from tally_for, credibility-filtered exactly
+  -# like the plate, so the line and the picture above it can only ever agree.
   %p.news
-    - if @arrival
-      - name = @arrival[:name].public_send(station_lang) || @arrival[:name].en
-      %span.news-name= name
-      %span.news-when= @arrival[:at].strftime('%H:%M')
-    - elsif @species_today.positive?
+    - if @species_today.positive?
       %span.news-name= station_text(en: "#{@species_today} species today",
                                     ga: "#{@species_today} speiceas inniu")
-    - else
+    - elsif @status[:listening]
       -# Every day starts at zero and stays there until the first bird — often for hours after
       -# midnight. "0 species today" is true but a bleak thing to hang on a wall, so the panel
       -# says what it is actually doing instead.
       %span.news-name.quiet= station_text(en: 'Listening', ga: 'Ag éisteacht')
+    - else
+      -# But a zero-species day when the recorder is DOWN is not listening at all — saying so
+      -# would be a wall that lies. Name the real state instead (the △ stamp below agrees).
+      %span.news-name.quiet= station_text(en: 'Offline', ga: 'As líne')
 
   -# The almanac bar — four marks read at a glance (temperature, moon, sunrise, sunset). The
   -# moon is DRAWN, not glyphed, so the panel shows tonight's real phase; item[:svg] is the

@@ -13,17 +13,18 @@ class TodaySummary
   STORE = Rails.root.join('storage/today_summary.json')
 
   class << self
-    # The last-good summary for the page — bilingual { en: [...], ga: [...] }. Never touches
-    # the model or blocks. The cache is only used for the SAME day we're rendering; a summary
-    # left over from yesterday is discarded so "today" is never stale, and a fresh no-model
-    # view (DayNarrator's fallback) is computed instead.
+    # The last-good summary for the page — bilingual { en: [...], ga: [...] }. A pure cache read:
+    # it never narrates and never blocks, so it is safe on the request path. The cache is only
+    # used for the SAME day we're rendering; a summary left over from yesterday is discarded so
+    # "today" is never stale. On a miss it returns a bare placeholder the card hides — narration
+    # (even the no-model fallback) is the warm job's work, off the request (WarmTodaySummaryJob,
+    # enqueued by BaseController#warm_today_summary), so no visitor ever pays for it.
     def current(facts: nil)
       facts ||= DailyFacts.for
       cached = read_cache
       return cached if cached && cached[:facts_date].to_s == facts[:date].to_s
 
-      result = DayNarrator.narrate(facts, model: false)
-      { bullets: result[:bullets], source: result[:source], sources: result[:sources],
+      { bullets: { en: [], ga: [] }, source: 'template', sources: [],
         facts_date: facts[:date], generated_at: nil }
     end
 
@@ -45,11 +46,19 @@ class TodaySummary
     # day is always stale). Cheap to call on every ingest.
     def refresh_if_stale(max_age: 30.minutes, now: Time.current, enrich: true)
       cached = read_cache
-      fresh = cached && cached[:generated_at] && cached[:generated_at] > max_age.ago &&
-              cached[:facts_date].to_s == now.to_date.to_s
-      return cached if fresh
+      return cached unless stale?(max_age: max_age, now: now)
 
       refresh(now: now, enrich: enrich)
+    end
+
+    # Would refresh_if_stale do work? A pure read (one small file), so it is safe to ask on
+    # every request — which is what lets a web request DECIDE to refresh without being the
+    # thing that refreshes. See Api::BaseController#warm_today_summary.
+    def stale?(max_age: 30.minutes, now: Time.current)
+      cached = read_cache
+      fresh = cached && cached[:generated_at] && cached[:generated_at] > max_age.ago &&
+              cached[:facts_date].to_s == now.to_date.to_s
+      !fresh
     end
 
     private

@@ -86,21 +86,47 @@ RSpec.describe 'Panel' do
       expect(response.body).not_to include('class="wordmark"')
     end
 
-    # The plate is a frozen daily edition, so the news line is the only thing that moves:
-    # the day's most recent FIRST arrival, with its time.
-    it "leads with the day's most recent arrival and its time" do
+    # The news line carries the day's species COUNT and names no individual bird. It once led
+    # with the latest arrival, which could contradict the plate above it: that lookup skipped
+    # the credibility filter, so a lone low-confidence hit the collage had excluded could still
+    # be printed on the wall by name. The count comes from the same filtered tally as the plate,
+    # so the two cannot disagree.
+    it "leads with the day's species count, naming no bird" do
       Station.language = :en
       get '/station'
-      expect(response.body).to include('class="news-name">European Robin')
-      expect(response.body).to match(/class="news-when">\s*\d{2}:\d{2}/)
+      expect(response.body).to include('class="news-name">1 species today')
+    end
+
+    # The regression that motivated the change: a lone 27% "Gadwall" is exactly BirdNET's
+    # false-positive zone, kept off the plate by credible_species. The panel must not name it.
+    it 'never names a bird the collage itself excludes as not credible' do
+      Station.language = :en
+      create(:detection, Sci_Name: 'Mareca strepera', Com_Name: 'Gadwall', Confidence: 0.27)
+      get '/station'
+      expect(response.body).not_to include('Gadwall')
+      # …and the count still agrees with the plate, which never counted it either.
+      expect(response.body).to include('class="news-name">1 species today')
     end
 
     # Before the first bird — every night after midnight, often for hours — "0 species today"
-    # is true but a bleak thing to hang on a wall, so the panel says what it is doing.
+    # is true but a bleak thing to hang on a wall, so the panel says what it is doing. But only
+    # when the mic is genuinely up: a fresh heartbeat proves the loop is running though nothing
+    # has been heard yet.
     it 'rests in the listening state before anything is heard' do
       Detection.delete_all
+      create(:heartbeat, at: Time.current) # the mic loop is alive, just quiet
       get '/station'
       expect(response.body).to include('ag éisteacht') # Irish by default
+    end
+
+    # …but a zero-species day with NO recent tick is the recorder being DOWN, not resting. The
+    # wall must not claim to be listening when it isn't — it names the real state instead.
+    it 'reads offline, not listening, when the recorder has gone quiet' do
+      Detection.delete_all
+      # no heartbeat, no detection → station_status is not fresh
+      get '/station'
+      expect(response.body).to include('as líne') # Irish "offline" by default
+      expect(response.body).not_to include('éisteacht') # never claims to be listening
     end
 
     # An honest stamp of when this impression was taken — date AND time, since a time alone

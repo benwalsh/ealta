@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_19_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_20_120000) do
   create_table "day_notes", force: :cascade do |t|
     t.text "body"
     t.datetime "created_at", null: false
@@ -36,6 +36,30 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_19_120000) do
     t.index ["Date", "Time"], name: "index_detections_on_Date_and_Time"
     t.index ["Sci_Name"], name: "index_detections_on_Sci_Name"
     t.index ["dedupe_key"], name: "index_detections_on_dedupe_key", unique: true
+  end
+
+  create_table "device_vitals", force: :cascade do |t|
+    t.datetime "boot_at"
+    t.float "cpu_temp_c"
+    t.datetime "created_at", null: false
+    t.integer "disk_free_mb"
+    t.integer "disk_total_mb"
+    t.boolean "git_dirty"
+    t.string "git_sha"
+    t.datetime "litestream_at"
+    t.string "litestream_error"
+    t.string "mic_name"
+    t.string "panel_outcome"
+    t.datetime "panel_pushed_at"
+    t.datetime "panel_ran_at"
+    t.datetime "received_at", null: false
+    t.datetime "reported_at"
+    t.json "services"
+    t.string "station_key", null: false
+    t.boolean "undervoltage_now"
+    t.boolean "undervoltage_since_boot"
+    t.datetime "updated_at", null: false
+    t.index ["station_key"], name: "index_device_vitals_on_station_key", unique: true
   end
 
   create_table "email_suppressions", force: :cascade do |t|

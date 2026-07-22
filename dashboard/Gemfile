@@ -33,6 +33,7 @@ gem 'omniauth-rails_csrf_protection'
 # adapter — no libmysqlclient to compile into the container image. The Pi never
 # needs it: `bundle config set --without cloud` (see deploy/provision.sh).
 group :cloud do
+  gem 'aws-sdk-s3' # upload generated bird illustrations to the CDN bucket (Illustrations); cloud-only
   gem 'aws-sdk-sesv2' # alert emails via SES templated-email (Notifier); cloud-only
   gem 'trilogy'
 end

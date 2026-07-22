@@ -177,8 +177,12 @@ body.ed {
   transition: opacity 220ms ease, transform 220ms ease;
 }
 .ed-hits.is-on { transform: translateY(0); opacity: 1; pointer-events: auto; }
-.ed-hit { background: transparent; border: 0; padding: 0; cursor: pointer; display: block; line-height: 0; }
-.ed-hit img { height: 42px; width: auto; display: block; transition: transform 140ms ease; }
+/* A FIXED slot per bird (see SLOT_W/SLOT_H in HitsStrip.tsx). `width: auto` here meant each
+   image had no width until it downloaded, and twelve of them resolving inside a centred flex
+   row was this page's entire 0.926 CLS. The slot reserves the box before the file lands;
+   object-fit keeps every bird's own proportions inside it. */
+.ed-hit { background: transparent; border: 0; padding: 0; cursor: pointer; display: block; line-height: 0; flex: 0 0 52px; }
+.ed-hit img { height: 42px; width: 52px; object-fit: contain; display: block; transition: transform 140ms ease; }
 .ed-hit:hover img { transform: translateY(-2px) scale(1.09); }
 
 /* ---- The collage: dominant, full-bleed to the viewport edges ---- */
@@ -186,6 +190,22 @@ body.ed {
   position: relative;
   width: 100vw; margin-left: calc(50% - 50vw);
   padding: 30px clamp(20px, 5vw, 90px) 6px;
+}
+/* The collage's box, held open while /api/overview is still in flight. The web collage is
+   always 800×480 (CollagePresenter's defaults, what /api/overview serves), and this sits
+   inside .ed-stage's padding just as the real one does — so the same aspect at the same
+   width yields the same height, and the collage lands INTO the space instead of pushing the
+   page down. max-height matches .ed-hero-collage svg so the two agree once clamped. */
+/* Hold a full viewport while waiting, so the FOOTER starts below the fold. Reserving just the
+   collage box left the footer visible on a short page, and everything that renders under the
+   collage (spark, almanac, notable, lists) then shoved it down — the last 0.10 of the shift.
+   Content the reader cannot see cannot jump; once data lands the real sections fill this. */
+.ed-stage.is-waiting { min-height: 100vh; }
+.ed-stage-waiting {
+  aspect-ratio: 800 / 480;
+  max-height: 76vh;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--ink-soft);
 }
 .ed-hero-collage { position: relative; display: flex; align-items: center; justify-content: center; }
 .ed-hero-collage .collage__bg { display: none; }
@@ -211,14 +231,11 @@ body.ed {
   margin: 52px auto 16px; padding: 26px 0 10px;
   border-top: 1px solid var(--rule);
 }
-.today-head { display: flex; align-items: baseline; gap: 14px; }
 /* "TODAY" in the page's serif voice (inherited), letter-spaced and muted. Only
    size/weight are set here so the font family is never overridden. */
 .today-word { font-weight: 500; font-size: 15px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-2); }
-/* The date is a data reading, so it takes the page's monospace like the nav + the
-   ambient footer — chrome and data are mono; only prose stays serif. */
-.today-date { font: 12px var(--mono); letter-spacing: 0.04em; color: var(--ink-soft); }
-.today-rule { border: 0; border-top: 1px solid var(--rule); margin: 15px 0 22px; }
+/* (The Journal's dateline + its extra rule are gone — the calendar picker itself now reads as the
+   formatted date, and the card's own top border is the only hairline above the entry.) */
 
 /* Summary: 2-4 left-aligned ink-bullet rows, in the page serif. The only prose —
    held to a comfortable measure so the lines stay readable in the wide section. */
@@ -238,6 +255,29 @@ body.ed {
 .today-summary .bird { font-weight: 600; color: var(--ink); cursor: pointer; }
 .today-summary .bird[data-sci]:hover { text-decoration: underline; text-underline-offset: 2px; }
 .today-summary em, .today-summary i { font-style: italic; }
+
+/* Inline facts & folklore citations — the muted mark that trails a bullet, one link per source
+   page behind the birds it names, set right where the fact is rather than lumped at the foot. A
+   printer's footnote: quiet mono, a hairline underline, never a call to action. */
+.bullet-cites { margin-left: 8px; font: 10.5px var(--mono); letter-spacing: 0.03em; white-space: nowrap; }
+.bullet-cites a {
+  color: var(--ink-soft); text-decoration: none;
+  border-bottom: 1px solid var(--rule); padding-bottom: 1px;
+}
+.bullet-cites a:not(:last-child) { margin-right: 8px; }
+.bullet-cites a:hover { color: var(--ink); border-bottom-color: var(--ink-soft); }
+
+/* The window / day headline figures — detections · species · duration — one quiet mono line
+   heading the roll of birds, the same on Live (Recently heard) and the Journal (Heard this day). */
+.detstats {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px;
+  margin: 0 0 14px; max-width: 620px;
+  font: 12px var(--mono); letter-spacing: 0.03em; color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+.detstats-seg { display: inline-flex; align-items: baseline; gap: 6px; }
+.detstats-seg b { font-weight: 500; color: var(--ink); }
+.detstats-sep { color: var(--rule); }
 
 /* Citations for the day's facts & folklore — a quiet mono line, a printer's mark set
    behind the prose. The label, then each distinct source as a muted link. */
@@ -264,20 +304,44 @@ body.ed {
 .cal-arrow:hover:not(:disabled) { color: var(--ink); }
 .cal-arrow:disabled { opacity: 0.3; cursor: default; }
 .cal-arrow .ti { font-size: 20px; }
-.cal-date {
-  background: transparent; border: 0; border-bottom: 1px solid var(--rule);
+/* The date IS the picker: a formatted mono label ("Monday, 20 July, 2026") with the native date
+   field laid invisibly over it, so a click opens the browser calendar while the reader sees the
+   words. */
+.cal-date { position: relative; display: inline-flex; }
+.cal-date-btn {
+  background: transparent; border: 0; border-bottom: 1px solid var(--rule); cursor: pointer;
   padding: 3px 2px; color: var(--ink); font: 12px var(--mono); letter-spacing: 0.04em;
+  white-space: nowrap;
 }
-.cal-date:focus { outline: none; border-bottom-color: var(--ink); }
-.journal .today-card { margin-top: 20px; }
+.cal-date-btn:hover, .cal-date:focus-within .cal-date-btn { border-bottom-color: var(--ink); }
+/* The real field, invisible and click-through — it holds the value and fires onChange when the
+   native calendar picks a day; the button above opens that calendar. */
+.cal-date-native {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  margin: 0; padding: 0; border: 0; opacity: 0; pointer-events: none;
+}
+/* The Journal entry carries NO dividing rules — the picker is the date, and each part is set off
+   by its mono section-tag and whitespace alone. So the card sheds the top border and padding the
+   home page's TODAY block wears. */
+.journal .today-card { margin-top: 6px; padding: 0; border-top: 0; }
+/* Every entry section (day / birds / lore & wisdom) — a mono tag, then its content, spaced. */
+.journal-section { margin-top: 40px; }
+.journal-section.journal-day { margin-top: 18px; } /* the first, just under the picker */
 
 /* The day's final figures — a quiet mono data line above the narration (mono = data, like
    the almanac). The busiest bird links to its card. */
-.journal-figures {
-  display: flex; flex-wrap: wrap; gap: 8px 28px; margin: 0 0 22px; padding: 0; list-style: none;
-  font: 12px var(--mono); letter-spacing: 0.02em; color: var(--ink-2);
+/* The day in figures — a quiet table at the FOOT of the entry (the story leads, the numbers
+   follow), with the day's stilled shape above it. */
+.journal-stats { margin: 40px 0 4px; }
+/* The day's most-detected bird — a single quiet mono caption (the species/detections/duration
+   headline now lives in the shared .detstats line above the roll of birds). */
+.journal-most-detected {
+  margin: 0 0 14px; font: 12px var(--mono); letter-spacing: 0.02em;
+  color: var(--ink); font-variant-numeric: tabular-nums;
 }
-.journal-figures b { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+.journal-most-label {
+  margin-right: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-soft);
+}
 .journal-fig-bird {
   background: none; border: 0; padding: 0; cursor: pointer; font: inherit; color: var(--ink);
   text-decoration: underline; text-underline-offset: 2px; text-decoration-color: var(--rule);
@@ -294,20 +358,45 @@ body.ed {
 }
 .journal-note-body { margin: 0; font: 16px/1.65 var(--serif); color: var(--ink); white-space: pre-line; }
 
-.journal-daylore { margin: 0 0 20px; }
-.journal-daylore-line { margin: 0; font: 14.5px var(--serif); font-style: italic; }
-.journal-daylore-title { color: var(--ink); }
-.journal-daylore-gloss { color: var(--ink-soft); }
-/* The curated deep dive on the day's tradition — a quiet serif passage, the féilire's own voice. */
-.journal-daylore-lore { margin: 8px 0 0; font: 15px/1.7 var(--serif); color: var(--ink); }
-.journal-daylore-credit { margin: 6px 0 0; font: 11px var(--mono); letter-spacing: 0.02em; color: var(--ink-soft); }
+/* The day in Irish tradition, under its section-tag: the féilire day or season name is the tag
+   itself; the gloss reads as the lead line, then any curated day-lore (a dúchas story or a
+   curated passage) as a quiet serif paragraph, credited in muted mono. */
+.journal-day-gloss { margin: 0; font: 15.5px/1.7 var(--serif); color: var(--ink); }
+/* A curated day-lore piece's own title (day_lore.yml) — a quiet italic serif line above its prose. */
+.journal-day-title { margin: 12px 0 4px; font: italic 14px/1.5 var(--serif); color: var(--ink-2); }
+.journal-day-lore { margin: 12px 0 0; font: 15px/1.72 var(--serif); color: var(--ink); white-space: pre-line; }
+/* A day whose verse leads (a clean, reader-worthy quatrain) — set in the voice-italic. */
+.journal-day-verse { margin: 12px 0 0; font: italic 16px/1.72 var(--serif); color: var(--ink); }
+/* The Old Irish original beneath it — quieter, its line-breaks kept. Only shown once verified. */
+.journal-day-verse-ga {
+  margin: 8px 0 0; font: italic 14.5px/1.6 var(--serif); color: var(--ink-soft); white-space: pre-line;
+}
+/* Reader-context for the day (who the saint was, the place, the story) — a quiet serif line. */
+.journal-day-note { margin: 12px 0 0; font: 13.5px/1.62 var(--serif); color: var(--ink-soft); }
+.journal-day-credit { margin: 10px 0 0; font: 11px var(--mono); letter-spacing: 0.02em; color: var(--ink-soft); }
 
-/* The closing lore — a poem or tale for one of the day's birds, set apart as a quiet quotation
-   with a left rule; the credit (and a link to the bird's card) in muted mono beneath. */
+/* Bird Lore & Wisdom — the day's closing lore, under its own quiet heading (matching Live's
+   section tags). The quotation itself sits just beneath. */
+.journal-lore-block { margin-bottom: 4px; } /* top margin comes from .journal-section */
+.journal-lore-block .journal-lore { margin-top: 12px; }
+/* The closing lore — a poem, legend, belief or tale for one of the day's birds, set apart as a
+   quiet quotation with a left rule; the credit (and a link to the bird's card) in muted mono
+   beneath. A curated literary piece may carry a title, a set-apart verse, and a context note. */
 .journal-lore { margin: 34px 0 4px; padding-left: 20px; border-left: 2px solid var(--rule); max-width: 640px; }
+.journal-lore-title { margin: 0 0 10px; font: italic 14px/1.5 var(--serif); color: var(--ink-2); }
 .journal-lore-text { margin: 0; font: 16px/1.72 var(--serif); color: var(--ink); white-space: pre-line; }
-.journal-lore.is-poem .journal-lore-text { font-style: italic; }
-.journal-lore-credit { margin-top: 12px; font: 11px var(--mono); letter-spacing: 0.02em; color: var(--ink-soft); }
+/* Verse reads as verse whatever frames it: a poem's body, or a set-apart quotation inside a prose
+   legend. Italic, its line breaks kept. */
+.journal-lore.is-poem .journal-lore-text,
+.journal-lore-verse { font-style: italic; }
+.journal-lore-verse {
+  margin: 14px 0 0; font: 15.5px/1.7 var(--serif); color: var(--ink); white-space: pre-line;
+}
+/* The context note — a plain serif line beneath the verse, telling the reader what they're
+   reading (who Aoife was, what the contest between bell and blackbird meant). Muted, never woven
+   into the quotation itself. */
+.journal-lore-note { margin: 14px 0 0; font: 13.5px/1.62 var(--serif); color: var(--ink-soft); }
+.journal-lore-credit { margin-top: 14px; font: 11px var(--mono); letter-spacing: 0.02em; color: var(--ink-soft); }
 .journal-lore-bird {
   background: none; border: 0; padding: 0; cursor: pointer; font: inherit; color: var(--ink-2);
   text-decoration: underline; text-underline-offset: 2px; text-decoration-color: var(--rule);
@@ -322,18 +411,8 @@ body.ed {
 .journal-lore-credit a:hover { color: var(--ink); }
 .lore-credit-collector { color: var(--ink-soft); }
 
-/* The hero deep dive — the day's featured bird, its sourced summary + cited facts. Quiet,
-   ink-on-paper; the name is the one accented, clickable mark. */
-.journal-hero { margin: 30px 0 4px; padding-top: 18px; border-top: 1px solid var(--rule); max-width: 640px; }
-.journal-hero-name {
-  background: none; border: 0; padding: 0; cursor: pointer; color: var(--ink);
-  font: 600 13px var(--mono); letter-spacing: 0.06em; text-transform: uppercase;
-}
-.journal-hero-name:hover { color: var(--accent); }
-.journal-hero-desc { margin: 10px 0 0; font: 16px/1.7 var(--serif); color: var(--ink); }
-
-/* The stilled day-shape curve + its simple hour ticks. */
-.journal-spark { margin: 4px 0 26px; }
+/* The stilled day-shape curve + its simple hour ticks — sits above the figures table. */
+.journal-spark { margin: 0 0 18px; }
 .journal-spark .today-spark-svg { height: 72px; }
 .journal-spark-axis {
   display: flex; justify-content: space-between; margin-top: 5px;
@@ -352,10 +431,9 @@ body.ed {
      page keeps its horizontal rules to a minimum, the whitespace does the separating. */
   background: var(--paper); padding-bottom: 10px;
 }
-/* Chrome: the time-window control and its total, grouped together at the top-left as
-   one unit (the total used to float off at the far right and read as detached). */
+/* Chrome: the time-window control at the top-left. (Its total detections moved down to the
+   shared stats line above Recently heard — detections · species · duration.) */
 .today-spark-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 8px; }
-.today-spark-total { font: 13px var(--mono); color: var(--ink); font-variant-numeric: tabular-nums; }
 .today-spark-svg { display: block; width: 100%; height: 104px; }
 /* A thin green stroke — the only green on the page. */
 .today-spark-line { stroke: var(--green); stroke-width: 1.75; vector-effect: non-scaling-stroke; }

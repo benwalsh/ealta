@@ -26,5 +26,24 @@ RSpec.describe BirdLore do
 
       expect(described_class.entries('Turdus merula')).to eq([])
     end
+
+    it 'surfaces a shared "multi:" excerpt under every species it tags' do
+      shared = { 'kind' => 'legend', 'title' => 'The Crane in the Marshes',
+                 'species' => ['Ardea cinerea', 'Grus grus'], 'text' => 'Sweet-voiced is the crane…' }
+      stub_lore({ 'multi:corr-marsh' => [shared] })
+
+      expect(described_class.entries('Ardea cinerea')).to eq([shared])
+      expect(described_class.entries('Grus grus')).to eq([shared])
+      expect(described_class.entries('Passer domesticus')).to eq([]) # not tagged
+    end
+
+    it 'appends shared excerpts after the bird\'s own entries, ordered by key' do
+      own = { 'kind' => 'poem', 'title' => 'Own', 'text' => 'mine' }
+      z = { 'kind' => 'poem', 'title' => 'Z', 'species' => ['Grus grus'], 'text' => 'z' }
+      a = { 'kind' => 'poem', 'title' => 'A', 'species' => ['Grus grus'], 'text' => 'a' }
+      stub_lore({ 'Grus grus' => own, 'multi:zzz' => [z], 'multi:aaa' => [a] })
+
+      expect(described_class.entries('Grus grus')).to eq([own, a, z]) # own first, then aaa, then zzz
+    end
   end
 end

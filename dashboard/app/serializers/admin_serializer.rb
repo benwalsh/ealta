@@ -49,7 +49,41 @@ module AdminSerializer
       station:   {
         language: Station.language,
         options:  Station.languages.map { |code| { code: code, name: Station.language_name(code) } }
-      }
+      },
+      device:    device(snapshot[:device])
+    }
+  end
+
+  # The wall's vitals. Only two things cross: the plain-English warnings (already words, so the
+  # panel never has to know what a throttled bitfield is), and the readings themselves for the
+  # times when "everything is fine" isn't enough and you want to see the numbers.
+  #
+  # `reporting` leads because it qualifies everything after it. A device that stopped reporting
+  # an hour ago must not be able to look like one reporting healthy values — so the panel gets
+  # told the report is stale rather than being left to infer it from a timestamp it might not
+  # render. Times cross as ISO strings; durations as whole seconds, formatted client-side.
+  def device(device)
+    return { reporting: 'none' } if device.nil? || device[:reporting] == :none
+
+    {
+      reporting:   device[:reporting].to_s,
+      received_at: device[:received_at]&.iso8601,
+      warnings:    device[:warnings],
+      version:     { sha: device[:version][:sha], dirty: device[:version][:dirty] },
+      uptime:      device[:uptime]&.round,
+      panel:       {
+        pushed_at: device[:panel][:pushed_at]&.iso8601,
+        ran_at:    device[:panel][:ran_at]&.iso8601,
+        outcome:   device[:panel][:outcome]
+      },
+      services:    device[:services],
+      # The bucket name is already on `backup`; what's new here is whether the replica was
+      # actually reachable when the device last asked.
+      litestream:  { at: device[:litestream][:at]&.iso8601, error: device[:litestream][:error] },
+      disk:        { free_mb: device[:disk][:free_mb], total_mb: device[:disk][:total_mb] },
+      cpu_temp_c:  device[:cpu_temp_c],
+      power:       device[:power],
+      mic_name:    device[:mic_name]
     }
   end
 end

@@ -41,21 +41,30 @@ module Api
       TodayCard.build(window_hours: current_window)
     end
 
-    # Keep the daily summary warm on page load. A genuinely stale box — a new day, or
-    # a cache hours old — regenerates the rich Bedrock narration here, so the page is
-    # never left showing only the bare template (which the card hides). A warm cache
-    # (the Pi's 20-min summary timer, or a recent load) returns immediately and never
-    # blocks; any Bedrock/network failure is swallowed and we serve whatever is cached.
-    # Half an hour: the note is cached and only re-stitched when it's that stale (or a
-    # new day). A warm cache — the Pi's summary timer, or a load within the window —
-    # returns at once and never blocks; the stitch is a single model call over already
-    # stored facts, so even a cold refresh is cheap.
+    # Keep the daily summary warm — by NOTICING it has gone stale, never by regenerating it
+    # here. The note is re-stitched every 30 minutes, and this used to do that inline: the
+    # first visitor after the window paid for DailyFacts plus a Bedrock call inside their page
+    # load, while every collage image queued behind the response. Measured at 1,014ms on the
+    # unlucky load and ~140ms on the rest. The regeneration is identical whoever triggers it,
+    # so it belongs in a job (see WarmTodaySummaryJob).
+    #
+    # The reader gets the previously cached note, which is what they'd have got anyway for the
+    # 30 minutes before this — just now for a few seconds longer, rather than one reader in
+    # thirty minutes waiting on a model.
     def warm_today_summary
-      # enrich: false — a page load re-stitches the note from EXISTING bundles but never blocks
-      # on live sourcing; building bundles for new arrivals is the timer's / ingest's job.
-      TodaySummary.refresh_if_stale(max_age: 30.minutes, enrich: false)
+      return unless TodaySummary.stale?(max_age: 30.minutes)
+
+      # One job per stale window, not one per visitor. `unless_exist` makes this an atomic
+      # claim, so a burst of concurrent readers (exactly what a stale window ends with)
+      # enqueues once rather than each queueing their own duplicate narration. The 5-minute
+      # lease is a backstop: if the job dies before clearing staleness, the next load re-tries
+      # rather than the note being stuck until the day rolls over.
+      return unless Rails.cache.write('today_summary/warming', true, expires_in: 5.minutes, unless_exist: true)
+
+      WarmTodaySummaryJob.perform_later
     rescue StandardError => e
-      Rails.logger.warn("today_json: summary refresh skipped (#{e.class}: #{e.message})")
+      # Enqueueing must never break a page. Without a queue we simply serve the cached note.
+      Rails.logger.warn("today_json: summary warm skipped (#{e.class}: #{e.message})")
     end
 
     # New & notable, grouped by kind: the newsworthy Events (rarity / first-ever /

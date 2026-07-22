@@ -50,8 +50,12 @@ shaky one, and it's fine to return fewer if that's all the sources truly support
                   name. This is the local hook — source it from BirdWatch Ireland (incl.
                   the relevant county branch) where you can.
   folklore      — a genuine piece of recorded lore, belief, or naming tradition, ideally
-                  Irish (duchas.ie / celt.ucc.ie). Set "gated": true on folklore ALWAYS,
-                  and frame it as lore, not fact.
+                  Irish (duchas.ie / celt.ucc.ie). Set "gated": true on folklore ALWAYS.
+                  Give the lore DIRECTLY: quote or retell the story itself, opening on the
+                  story. Do NOT preface it with editorial framing such as "In a tale from the
+                  Schools' Collection," / "According to folklore," / "Tradition holds that" —
+                  the source is cited separately, so the words should stand as the lore. Keep
+                  it lore, not fact.
 
 ABSOLUTE RULES:
 - "text_ga" must say EXACTLY what "text" says — a faithful translation, no fact added

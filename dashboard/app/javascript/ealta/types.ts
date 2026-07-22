@@ -64,6 +64,33 @@ export interface AdminHealth {
     language: string
     options: { code: string; name: string }[]
   }
+  device: DeviceVitals
+}
+
+// What the wall last said about itself (birdnet/vitals.py → /ingest/vitals → DeviceVital).
+// Every reading is nullable and null means UNKNOWN, not zero or false: collection on the
+// device is best-effort, so a dev box reports mostly nulls and the panel must render that as
+// "—" rather than as a healthy-looking figure it invented.
+export interface DeviceVitals {
+  // 'none' where the station has never reported. 'stale' means the readings below are the last
+  // known state rather than the current one — the panel says so out loud, because a device that
+  // went dark an hour ago showing healthy values is worse than one showing nothing.
+  reporting: 'fresh' | 'stale' | 'none'
+  received_at?: string | null
+  // Already plain sentences, server-side. Nothing here is ever a raw code.
+  warnings?: string[]
+  // dirty means someone edited the checkout in place: the running code is no longer any commit.
+  version?: { sha: string | null; dirty: boolean | null }
+  uptime?: number | null
+  // pushed_at is when pixels last reached the glass; ran_at is when the shooter last tried.
+  // A recent ran_at with an older pushed_at is healthy (nothing changed); both old is a frozen panel.
+  panel?: { pushed_at: string | null; ran_at: string | null; outcome: string | null }
+  services?: Record<string, { state: string | null; restarts: number | null }> | null
+  litestream?: { at: string | null; error: string | null }
+  disk?: { free_mb: number | null; total_mb: number | null }
+  cpu_temp_c?: number | null
+  power?: { now: boolean | null; since_boot: boolean | null }
+  mic_name?: string | null
 }
 
 export interface CollageNode {
@@ -236,8 +263,15 @@ export interface JournalDay {
   figures: {
     species: number
     detections: number
+    // The day's listening time in seconds (mic-up hours, gaps removed). null when coverage is
+    // unknown — an old day past heartbeat retention — so the stats line drops the duration.
+    duration_seconds: number | null
     busiest: { sci: string; en: string; ga: string | null; count: number } | null
   }
+  // The day's birds, last-heard first — Live's "Recently heard" locked to this day. Same shape,
+  // same component; capped like Live's, so `heard.length` is not the day's species total (that
+  // is `figures.species`).
+  heard: Tally[]
   summary: { en: string[]; ga: string[] }
   source: 'llm' | 'facts' | 'template' | null
   sources: { host: string; url: string }[]
@@ -262,26 +296,57 @@ export interface JournalDay {
     gloss: Bilingual
     kind: string
     lore: Bilingual | null
+    // The RICH layer: a curated custom/belief/legend/tale fixed to this day (day_lore.yml). Shown
+    // in place of the felire_lore floor when present. null on the many days with no curated lore.
+    day: {
+      kind: string | null
+      title: string | null
+      text: string | null
+      quote: string | null
+      note: string | null
+      credit: string | null
+    } | null
+    // The day's saint(s) and verse from the curated calendar (Martyrology of Óengus) — the
+    // narrative under the féilire name. `text` is the line to show (gloss, or the quatrain where
+    // that's all a day has); `verse` sets it in voice-italic when it's a promoted quatrain.
+    // quatrain_ga is only ever set once a fluent reader has verified it. null on a source-gap day.
+    narrative: {
+      saints: string[]
+      text: string
+      verse: boolean
+      quatrain_ga: string | null
+      note: string | null
+      credit: string | null
+    } | null
     sources: { host: string; url: string }[]
   } | null
-  // The day's hero — a short deep dive on the featured bird: its sourced Wikipedia summary.
-  // The bundle's fact blocks are deliberately NOT here: they are what the day's narration is
-  // written from, so listing them under it repeated the same material in a flatter voice.
-  // Folklore is the set-apart coda quote. Null on a quiet day.
-  hero: {
-    sci: string
-    en: string
-    ga: string | null
-    description: string | null
-    description_ga: string | null
+  // A rotating local-colour story from the station's own ground (place_lore.yml) — the coast's
+  // standing character, and what carries a birdless winter day. null when the station ships none.
+  place: {
+    place: string
+    kind: string | null
+    title: string | null
+    text: string | null
+    quote: string | null
+    narrator: string | null
+    note: string | null
+    credit: string | null
   } | null
   notable: NotableGroups
-  // The day's closing quotes, each set apart with its credit: the curated literary
-  // lore (poem/tale) and any sourced folklore (dúchas etc.) — never woven into prose.
+  // The day's closing quotes, each set apart with its credit: the curated literary lore
+  // (poem/legend/belief/tale) and any sourced folklore (dúchas etc.) — never woven into prose.
   quotes: {
-    kind: 'poem' | 'tale' | 'folklore'
-    text: string
+    kind: 'poem' | 'legend' | 'belief' | 'tale' | 'folklore'
+    // Curated literary lore carries more than a scraped passage: an optional title, a set-apart
+    // verse `quote` (inside a prose entry, or the whole of a verse-only one), a context `note`,
+    // and a composed book `credit`. All optional — web folklore has none of them.
+    title?: string | null
+    // The main body: prose or verse. null on a verse-only entry (its verse is in `quote`).
+    text: string | null
     text_ga?: string | null
+    quote?: string | null
+    note?: string | null
+    credit?: string | null
     attribution: string | null
     // The full citation when there is one (dúchas carries rights-holder + licence deed + collector),
     // so the coda can link the reference and the licence rather than show a bare string.
@@ -300,6 +365,13 @@ export interface Overview {
     species_today: number
     detections_today: number
     detections_all_time: number
+  }
+  // The selected window's headline figures for the stats line above Recently heard. duration is
+  // the mic's listening time across the window (gaps removed), null for the "all time" span.
+  stats: {
+    detections: number
+    species: number
+    duration_seconds: number | null
   }
   top: Tally[]
   recent: Tally[]
@@ -327,8 +399,15 @@ export interface EnrichmentSource {
 export type EnrichmentKind = 'fact' | 'regional_note' | 'folklore' | 'station_reading'
 export interface EnrichmentBlock {
   type: EnrichmentKind
-  text: string
+  // null on a verse-only curated entry (its verse lives in `quote`).
+  text: string | null
   text_ga: string | null
+  // Curated literary lore only (bird_lore.yml): a title, a set-apart verse, a context note, and a
+  // composed book credit. All absent on scraped web blocks.
+  title?: string | null
+  quote?: string | null
+  note?: string | null
+  credit?: string | null
   sources: EnrichmentSource[]
 }
 export interface Enrichment {

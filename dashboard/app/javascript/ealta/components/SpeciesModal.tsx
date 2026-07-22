@@ -40,18 +40,25 @@ function Lore({
   tone: string
   ga: boolean
 }) {
+  const body = ga && block.text_ga ? block.text_ga : block.text
   return (
-    <p className={`modal-lore-item ${tone}`}>
+    <div className={`modal-lore-item ${tone}`}>
       <span className="modal-lore-k">{kind}</span>
-      <span className="modal-lore-text">{ga && block.text_ga ? block.text_ga : block.text}</span>
-      {block.sources.length > 0 && (
+      {block.title && <span className="modal-lore-title">{block.title}</span>}
+      {body && <span className="modal-lore-text">{body}</span>}
+      {block.quote && <span className="modal-lore-verse">{block.quote}</span>}
+      {block.note && <span className="modal-lore-note">{block.note}</span>}
+      {/* A curated entry composes its own book credit; a scraped block links its host source(s). */}
+      {block.credit ? (
+        <span className="modal-lore-credit">{block.credit}</span>
+      ) : block.sources.length > 0 ? (
         <span className="modal-lore-src">
           {block.sources.map((s, i) => (
             <LoreCredit key={i} source={s} />
           ))}
         </span>
-      )}
-    </p>
+      ) : null}
+    </div>
   )
 }
 
@@ -199,25 +206,30 @@ export function SpeciesModal({ sci, onClose }: { sci: string; onClose: () => voi
               </div>
             </div>
 
-            <div className="modal-recordings">
-              <div className="rec-head">
-                <h3>{t('Detections', 'Aimsithe')}</h3>
-                <span className="rec-count">
-                  {t('most recent', 'is déanaí')} {data.recent.length}
-                </span>
+            {/* Detections only for a bird actually heard here — an un-heard species (browsable
+                from the "all species" directory, but never recorded) has an empty roll, so the
+                table is dropped rather than shown as a bare, zeroed header. */}
+            {data.recent.length > 0 && (
+              <div className="modal-recordings">
+                <div className="rec-head">
+                  <h3>{t('Detections', 'Aimsithe')}</h3>
+                  <span className="rec-count">
+                    {t('most recent', 'is déanaí')} {data.recent.length}
+                  </span>
+                </div>
+                <ol>
+                  {data.recent.map((r, i) => (
+                    <li key={i}>
+                      <span className="rec-when">
+                        {ago(r.at, lang)}
+                        <small>{stamp(r.at, lang)}</small>
+                      </span>
+                      <span className="rec-conf">{Math.round(r.confidence * 100)}%</span>
+                    </li>
+                  ))}
+                </ol>
               </div>
-              <ol>
-                {data.recent.map((r, i) => (
-                  <li key={i}>
-                    <span className="rec-when">
-                      {ago(r.at, lang)}
-                      <small>{stamp(r.at, lang)}</small>
-                    </span>
-                    <span className="rec-conf">{Math.round(r.confidence * 100)}%</span>
-                  </li>
-                ))}
-              </ol>
-            </div>
+            )}
           </>
         )}
       </article>

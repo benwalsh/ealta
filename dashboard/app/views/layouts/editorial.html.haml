@@ -6,6 +6,11 @@
     %meta{ name: "application-name", content: Station.site_name }
     = csrf_meta_tags
     = csp_meta_tag
+    -# Warm the connection to the art host before React needs it: the collage images are the
+    -# LCP and they live on a different origin, so DNS+TLS to it is pure latency in the critical
+    -# path. Skipped when art is served locally (nil origin).
+    - if (cdn = illustration_cdn_origin)
+      %link{ rel: "preconnect", href: cdn }
     -# The favicon is the station's, streamed from its profile (StationAssetsController),
     -# not an app/assets file. type must be image/png — Chrome silently drops a PNG
     -# served as the image/x-icon that favicon_link_tag would default to.

@@ -42,16 +42,32 @@ RSpec.describe 'API journal' do
       expect(body['lore']).to be_nil
     end
 
-    it 'quotes the station seed lore as folklore, credited to its attribution' do
+    it "rolls the day's birds last-heard first, locked to the day (Live's Recently heard, past tense)" do
+      create(:detection, Sci_Name: 'Passer domesticus', Com_Name: 'House Sparrow',
+                         Confidence: 0.9, Date: '2026-07-07', Time: '21:30:00')
+      # …and a bird from the NEXT day, which the day's roll must not reach for.
+      create_list(:detection, 6, Sci_Name: 'Turdus merula', Com_Name: 'Eurasian Blackbird',
+                                 Confidence: 0.9, Date: '2026-07-08')
+      get '/api/journal'
+      heard = response.parsed_body['heard']
+
+      # The sparrow at 21:30 sits above the robins at 09:00; the next day's blackbird is absent.
+      expect(heard.pluck('sci')).to eq(['Passer domesticus', 'Erithacus rubecula'])
+      expect(heard.first).to include('en' => 'House Sparrow', 'count' => 1)
+      expect(heard.first['last_time']).to include('21:30')
+    end
+
+    it 'quotes the station seed lore, carrying its curated kind and credit' do
       create(:detection, Sci_Name: 'Streptopelia decaocto', Com_Name: 'Eurasian Collared-Dove',
                          Confidence: 0.9, Date: '2026-07-07')
       # The robin was here days ago, so today it is routine — the first-ever dove is the hero.
       create_list(:detection, 6, Sci_Name: 'Erithacus rubecula', Com_Name: 'European Robin',
                                  Confidence: 0.9, Date: '2026-07-05')
       get '/api/journal'
-      # The seed poem/tale (bird_lore.yml) is folklore exactly like a sourced passage — same kind.
+      # A curated entry surfaces its OWN kind (this one is a `tale`) for styling — no longer flattened
+      # to 'folklore' — while still pooling with web folklore for selection.
       quote = response.parsed_body['quotes'].first
-      expect(quote).to include('kind' => 'folklore', 'sci' => 'Streptopelia decaocto')
+      expect(quote).to include('kind' => 'tale', 'sci' => 'Streptopelia decaocto')
       expect(quote['text']).to include('deca octo')
       expect(quote['attribution']).to include('Greek folk etymology')
     end
@@ -72,6 +88,67 @@ RSpec.describe 'API journal' do
       quote = response.parsed_body['quotes'].find { |q| q['kind'] == 'folklore' }
       expect(quote).to include('sci' => 'Passer domesticus', 'attribution' => 'duchas.ie')
       expect(quote['text']).to include('carry news of a traveller')
+    end
+
+    it 'trails a narration bullet with the inline citation for the bird it names' do
+      # The robin's current bundle carries a Wikipedia-sourced fact; the bullet naming the robin
+      # gets that page as a muted inline mark, rather than the citations being lumped at the foot.
+      EnrichmentBundle.create!(
+        sci_name: 'Erithacus rubecula', date: '2026-07-07',
+        blocks: [{ type: 'fact', id: 'f1', text: 'A familiar bird of gardens and hedgerows.',
+                   sources: [{ host: 'en.wikipedia.org', url: 'https://en.wikipedia.org/wiki/European_robin' }] }]
+      )
+      get '/api/journal'
+      bullet = response.parsed_body['summary']['en'].first
+      expect(bullet).to include('<span class="bullet-cites">').
+        and include('href="https://en.wikipedia.org/wiki/European_robin"').
+        and include('>Wikipedia</a>')
+    end
+
+    it 'strips editorial framing from a folklore quote so the lore stands on its own' do
+      create(:detection, Sci_Name: 'Passer domesticus', Com_Name: 'House Sparrow',
+                         Confidence: 0.9, Date: '2026-07-07')
+      # Robin routine (heard earlier), so the first-ever sparrow is today's hero and carries the coda.
+      create_list(:detection, 6, Sci_Name: 'Erithacus rubecula', Com_Name: 'European Robin',
+                                 Confidence: 0.9, Date: '2026-07-05')
+      EnrichmentBundle.create!(
+        sci_name: 'Passer domesticus', date: '2026-07-07',
+        blocks: [{ type: 'folklore', id: 'f1', gated: true,
+                   text: "In a tale from the Schools' Collection, the sparrow carried news of a traveller.",
+                   sources: [{ host: 'duchas.ie', url: 'https://duchas.ie/story/1' }] }]
+      )
+      get '/api/journal'
+      quote = response.parsed_body['quotes'].find { |q| q['kind'] == 'folklore' }
+      expect(quote['text']).to eq('The sparrow carried news of a traveller.')
+    end
+
+    it 'surfaces a curated legend in full: title, set-apart verse, context note and book credit' do
+      allow(StationProfile).to receive(:yaml).and_call_original
+      allow(StationProfile).to receive(:yaml).with('content/bird_lore.yml').and_return(
+        'Passer domesticus' => {
+          'kind' => 'legend', 'title' => 'The Fate of the Children of Lir',
+          'text' => 'She led the children to the edge of the lake…',
+          'quote' => "Out to your home, ye swans, on Darvra's wave;",
+          'note' => 'Aoife turns the children of Lir into swans.',
+          'attribution' => 'trans. P. W. Joyce', 'source_work' => 'Old Celtic Romances',
+          'year_translation' => 1879
+        }
+      )
+      create(:detection, Sci_Name: 'Passer domesticus', Com_Name: 'House Sparrow',
+                         Confidence: 0.9, Date: '2026-07-07')
+      create_list(:detection, 6, Sci_Name: 'Erithacus rubecula', Com_Name: 'European Robin',
+                                 Confidence: 0.9, Date: '2026-07-05') # robin routine → sparrow is hero
+
+      get '/api/journal'
+      quote = response.parsed_body['quotes'].first
+      expect(quote).to include(
+        'kind'   => 'legend',
+        'title'  => 'The Fate of the Children of Lir',
+        'text'   => 'She led the children to the edge of the lake…',
+        'quote'  => "Out to your home, ye swans, on Darvra's wave;",
+        'note'   => 'Aoife turns the children of Lir into swans.',
+        'credit' => 'trans. P. W. Joyce · Old Celtic Romances (1879)'
+      )
     end
 
     it 'follows the day hero: quotes the first-ever rarity, not the most-detected common bird' do
@@ -95,7 +172,7 @@ RSpec.describe 'API journal' do
 
       get '/api/journal'
       quote = response.parsed_body['quotes'].first
-      expect(quote).to include('sci' => 'Pluvialis apricaria', 'kind' => 'folklore')
+      expect(quote).to include('sci' => 'Pluvialis apricaria', 'kind' => 'poem')
       expect(quote['text']).to eq('Plover verse.')
     end
 
@@ -125,33 +202,38 @@ RSpec.describe 'API journal' do
       get '/api/journal', params: { date: '2026-07-09' }
       day_two = response.parsed_body['quotes']
 
-      # One folklore quote per journal, always kind 'folklore' whichever spring it came from — but
-      # the TEXT alternates: the seed poem one day, the dúchas passage the next.
+      # One quote per journal, drawn from the one pool — but each keeps its OWN kind now: the seed
+      # entry its 'poem', the web passage its 'folklore'. The TEXT alternates day to day.
       expect(day_one.pluck('sci')).to eq(['Passer domesticus'])
       expect(day_two.pluck('sci')).to eq(['Passer domesticus'])
-      expect([day_one, day_two].map { |q| q.first['kind'] }).to eq(%w[folklore folklore])
+      expect([day_one, day_two].map { |q| q.first['kind'] }).to contain_exactly('poem', 'folklore')
       expect([day_one, day_two].map { |q| q.first['text'] }).to contain_exactly(seed, duchas)
     end
 
-    it 'carries a deep-dive card for the day hero — its summary only, no listed blocks' do
+    it 'closes on folklore, falling back from a lore-less hero to another of the day\'s birds' do
       create(:detection, Sci_Name: 'Pluvialis apricaria', Com_Name: 'European Golden Plover',
                          Confidence: 0.9, Date: '2026-07-07')
-      # Robin routine (heard earlier), so the first-ever plover is the hero.
+      # Robin routine (heard earlier), so the first-ever plover is the hero — but it has NO folklore
+      # (nothing has been written down for it), so the coda falls through to the robin, which does.
       create_list(:detection, 6, Sci_Name: 'Erithacus rubecula', Com_Name: 'European Robin',
                                  Confidence: 0.9, Date: '2026-07-05')
       EnrichmentBundle.create!(
         sci_name: 'Pluvialis apricaria', date: '2026-07-07',
         blocks: [{ type: 'fact', id: 'f1', text: 'Breeds on upland bogs and moors.',
-                   sources: [{ host: 'en.wikipedia.org', url: 'https://en.wikipedia.org/wiki/x' }] },
-                 { type: 'folklore', id: 'l1', gated: true, text: 'A plover omen.',
+                   sources: [{ host: 'en.wikipedia.org', url: 'https://en.wikipedia.org/wiki/x' }] }]
+      )
+      EnrichmentBundle.create!(
+        sci_name: 'Erithacus rubecula', date: '2026-07-07',
+        blocks: [{ type: 'folklore', id: 'l1', gated: true, text: 'A robin at the window.',
                    sources: [{ host: 'duchas.ie', url: 'https://duchas.ie/1' }] }]
       )
       get '/api/journal'
-      hero = response.parsed_body['hero']
-      expect(hero['sci']).to eq('Pluvialis apricaria')
-      expect(hero['description']).to eq('A small bird of gardens and hedgerows.')
-      # The bundle's fact blocks feed the narration above; they are not repeated as bullets here.
-      expect(hero).not_to have_key('facts')
+      body = response.parsed_body
+      # The deep-dive card is gone — the journal no longer repeats the catalogue's basic bird info.
+      expect(body).not_to have_key('hero')
+      quote = body['quotes'].first
+      expect(quote).to include('kind' => 'folklore', 'sci' => 'Erithacus rubecula')
+      expect(quote['text']).to eq('A robin at the window.')
     end
 
     it 'flags a day offline and gaps its sparkline from the frozen coverage' do
@@ -166,6 +248,7 @@ RSpec.describe 'API journal' do
       body = response.parsed_body
       expect(body['offline']).to be(true) # only 4 of 24 hours covered
       expect(body['mic_hours']).to eq(4) # …and it says how long the mic actually listened
+      expect(body['figures']['duration_seconds']).to eq(4 * 3600) # the stats line's listening time
       expect(body['sparkline']['gaps']).to be_present
       # The gap is shown by the curve breaking, not by a captioned slab, so it carries no label.
       expect(body['sparkline']['gaps'].first.keys).to contain_exactly('x0', 'x1')

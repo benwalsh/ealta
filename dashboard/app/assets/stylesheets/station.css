@@ -10,59 +10,121 @@
    one place colour earns its keep is the birds themselves.
 
    Refresh matters too: the Impression has no partial update, so every change is a full-panel
-   flash of ~30–40s. The layout is therefore a printed broadside — a frozen daily plate with a
-   single line that moves — rather than anything that wants to tick. */
+   flash of ~30–40s. Everything therefore moves on ONE half-hour beat — plate, news line and
+   stamp together — rather than anything ticking independently. The budget is set by the stamp:
+   at half-hour resolution that is ~48 flashes a day, and the plate rides along for free. */
 .screen {
-  width: 480px; height: 800px; overflow: hidden;
-  background: var(--paper); color: var(--ink);
-  padding: 22px 26px 20px; display: flex; flex-direction: column;
-  font-family: "Baskerville", "Hoefler Text", "EB Garamond", Georgia, serif;
+  width: 480px;
+  height: 800px;
+  overflow: hidden;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 22px 26px 20px;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Baskerville', 'Hoefler Text', 'EB Garamond', Georgia, serif;
 }
 
-/* The plate — the frozen daily collage, taking every pixel the other three zones don't need. */
-.screen .plate { flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; }
-.screen .plate svg { width: 100%; height: 100%; display: block; }
+/* The plate — the day's collage as it stands, taking every pixel the other three zones
+   don't need. Repacked each half hour, so it fills up as the day does. */
+.screen .plate {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.screen .plate svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
 
 /* One piece of news. Large, centred, and the only thing on the panel that changes hour to
    hour — so it should be legible from the far side of the room, not squinted at. */
 .screen .news {
-  flex: 0 0 auto; margin: 0; padding: 15px 0 13px;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 15px 0 13px;
   border-top: 2px solid var(--ink);
-  text-align: center; line-height: 1.12;
+  text-align: center;
+  line-height: 1.12;
 }
-.screen .news-name { display: block; font-size: 30px; }
+.screen .news-name {
+  display: block;
+  font-size: 30px;
+}
 /* The waiting state — the same size, set in the voice-italic so it reads as the station
    speaking rather than as a bird's name. */
-.screen .news-name.quiet { font-style: italic; }
-.screen .news-when { display: block; margin-top: 5px; font-style: italic; font-size: 20px; }
-
+.screen .news-name.quiet {
+  font-style: italic;
+}
 /* The almanac bar — four marks (temperature, moon, sunrise, sunset), spaced across the width
    and read at a glance. Mono for the figures; solid ink for every mark. */
 .screen .bar {
-  flex: 0 0 auto; border-top: 2px solid var(--ink); padding-top: 11px;
-  display: flex; justify-content: space-between; align-items: center;
-  font: 17px ui-monospace, Menlo, monospace; letter-spacing: 0.01em;
+  flex: 0 0 auto;
+  border-top: 2px solid var(--ink);
+  padding-top: 11px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font:
+    17px ui-monospace,
+    Menlo,
+    monospace;
+  letter-spacing: 0.01em;
 }
-.screen .bar span { display: inline-flex; align-items: center; gap: 6px; }
-.screen .bar .ti { font-size: 20px; line-height: 1; }
+.screen .bar span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.screen .bar .ti {
+  font-size: 20px;
+  line-height: 1;
+}
 /* The moon is drawn rather than glyphed, so the panel shows the real phase — and inked solid,
    since a 55% tint would only dither into mush at this size. */
-.screen .bar .alm-moon { width: 20px; height: 20px; flex: none; }
+.screen .bar .alm-moon {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
 
 /* The tide, given its own line so the local turning point can be named in full — the one
    reading that matters most to the house this panel hangs in. */
 .screen .tide {
-  flex: 0 0 auto; margin: 9px 0 0;
-  display: flex; justify-content: center; align-items: center; gap: 7px;
-  font: 17px ui-monospace, Menlo, monospace; letter-spacing: 0.01em;
+  flex: 0 0 auto;
+  margin: 9px 0 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 7px;
+  font:
+    17px ui-monospace,
+    Menlo,
+    monospace;
+  letter-spacing: 0.01em;
 }
-.screen .tide .ti { font-size: 20px; line-height: 1; }
+.screen .tide .ti {
+  font-size: 20px;
+  line-height: 1;
+}
 
 /* Wayfinding and the printed stamp, set at the two ends like a page footer: where to see
    more, and when this impression was taken. */
 .screen .foot-line {
-  flex: 0 0 auto; margin: 13px 0 0;
-  display: flex; justify-content: space-between; align-items: baseline;
-  font: 15px ui-monospace, Menlo, monospace; letter-spacing: 0.03em;
+  flex: 0 0 auto;
+  margin: 13px 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font:
+    15px ui-monospace,
+    Menlo,
+    monospace;
+  letter-spacing: 0.03em;
 }
-.screen .foot-line .quiet { margin-right: 5px; }
+.screen .foot-line .quiet {
+  margin-right: 5px;
+}
